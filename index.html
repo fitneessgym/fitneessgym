@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FITNESS GYM | ناديك يبدأ من هنا</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body>
+<header><div class="wrap nav">
+<a class="brand" href="#home"><img src="logo.jpeg"><span id="brandText">FITNESS GYM</span></a>
+<button class="menu">☰</button>
+<nav><a href="#home">الرئيسية</a><a href="#about">عن النادي</a><a href="#services">الخدمات</a><a href="#plans">الاشتراكات</a><a href="#gallery">المعرض</a><a href="#contact">تواصل</a><a href="admin-login.html">دخول الإدارة</a></nav>
+</div></header>
+
+<section id="home" class="hero"><div class="wrap hero-content">
+<div class="tag" id="heroTag">FITNESS GYM</div><h1><span id="heroTitle">قوّتك تبدأ</span><br><span id="heroAccent">من هنا.</span></h1>
+<p id="heroText">تدريب أقوى. جسم أفضل. التزام حقيقي. ابدأ رحلتك معنا اليوم.</p>
+<div class="actions"><a class="btn orange" href="#plans">ابدأ الآن</a><a class="btn outline" href="#contact">احجز تجربة</a></div>
+<div class="hero-stats" id="heroStats"></div>
+</div></section>
+
+<section id="about" class="section"><div class="wrap grid">
+<div><div class="tag" id="aboutTag">من نحن</div><h2 id="aboutTitle">مكانك لبناء نسخة أقوى منك</h2><p id="aboutText">FITNESS GYM هو المكان الذي يجمع التدريب الجاد، المعدات، التحفيز والبيئة المناسبة لتصل إلى أهدافك.</p>
+<div class="features" id="features"></div></div>
+<div class="logo-box"><img src="logo.jpeg"></div>
+</div></section>
+
+<section id="services" class="section dark"><div class="wrap"><div class="tag">الخدمات</div><h2>كل ما تحتاجه في مكان واحد</h2>
+<div class="cards" id="servicesList"></div></div></section>
+
+<section id="plans" class="section"><div class="wrap"><div class="tag">الاشتراكات</div><h2>خطتك تبدأ من هنا</h2>
+<div class="plans" id="plansList"></div><p class="note">* الأسعار الحالية المعتمدة للنادي.</p></div></section>
+
+<section id="gallery" class="section dark"><div class="wrap"><div class="tag">المعرض</div><h2 id="galleryTitle">أجواء FITNESS GYM</h2>
+<div class="gallery" id="galleryList"></div>
+<p class="note" id="galleryNote">يمكن استبدال هذه المساحات بصور النادي الحقيقية لاحقاً.</p></div></section>
+
+<section id="contact" class="section contact"><div class="wrap grid">
+<div><div class="tag" id="contactTag">تواصل معنا</div><h2 id="contactTitle">جاهز تبدأ؟</h2><p id="contactText">تواصل معنا للحجز والاستفسار عن الاشتراكات.</p>
+<div class="contact-list"><p>📞 <b>الهاتف:</b> <span id="phone">+972 54-670-0672</span></p><p>💬 <b>واتساب:</b> <span id="whatsapp">+972 54-670-0672</span></p><p>📍 <b>العنوان:</b> <span id="address">بيت لحم - نحالين - وسط البلد</span></p><p>🕒 <b>الدوام:</b> <span id="hours">السبت – الخميس | 06:00 – 23:00</span></p></div>
+<a id="whatsappLink" class="btn whatsapp" href="https://wa.me/972546700672" target="_blank">تواصل عبر واتساب</a></div>
+<form onsubmit="sendForm(event)"><h3>احجز تجربة</h3><input id="name" required placeholder="الاسم"><input id="phone" required placeholder="رقم الهاتف"><select id="plan"><option>شهري</option><option>3 أشهر</option><option>سنوي</option></select><textarea id="message" rows="4" placeholder="ملاحظات"></textarea><button class="btn orange">إرسال الطلب</button></form>
+</div></section>
+
+
+
+<footer><div class="wrap foot"><span>© <span id="year"></span> FITNESS GYM</span><span id="footerText">القوة • الانضباط • الاستمرارية</span></div></footer>
+<script src="site-config.js"></script>
+<script src="site-public.js"></script>
+<script src="script.js"></script>
+</body></html>

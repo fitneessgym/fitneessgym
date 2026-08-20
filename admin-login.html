@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دخول الإدارة | FITNESS GYM</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="admin.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+</head>
+<body class="admin-page">
+<main class="login-shell">
+  <div class="login-card">
+    <img src="logo.jpeg" class="login-logo" alt="FITNESS GYM">
+    <div class="tag">ADMIN ACCESS</div>
+    <h1>دخول لوحة التحكم</h1>
+    <p>هذه الصفحة مخصصة لإدارة النادي والعملاء والديون والفواتير.</p>
+    <form id="loginForm" class="admin-form">
+      <label>البريد الإلكتروني</label>
+      <input id="email" type="email" autocomplete="username" required placeholder="البريد الإلكتروني">
+      <label>كلمة المرور</label>
+      <input id="password" type="password" autocomplete="current-password" required placeholder="كلمة المرور">
+      <div id="loginError" class="login-error"></div>
+      <button class="btn orange" type="submit">تسجيل الدخول</button>
+      <a class="back-link" href="index.html">العودة للموقع</a>
+    </form>
+  </div>
+</main>
+<script src="admin-auth.js"></script>
+</body>
+</html>
