@@ -1,3 +1,5 @@
+V7 — إصلاح تسجيل دخول اللاعب وإضافة التمارين مباشرة من الإدارة.
+
 Fitness Gym - fixed admin files
 
 Replace these files in the GitHub repository:

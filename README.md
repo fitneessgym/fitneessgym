@@ -1,3 +1,5 @@
+V7 — إصلاح تسجيل دخول اللاعب وإضافة التمارين مباشرة من الإدارة.
+
 # FITNESS GYM — Supabase Edition
 
 تم ربط الموقع بقاعدة بيانات Supabase بدلاً من localStorage.

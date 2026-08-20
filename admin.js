@@ -166,22 +166,36 @@
     e.target.reset();await refresh();alert('تم حفظ العميل وPIN بنجاح.');
   });
 
+  $('logWorkout')?.addEventListener('change',()=>{
+    const wi=$('logWorkout').value==='' ? -1 : Number($('logWorkout').value);
+    const w=wi>=0?workouts[wi]:null;
+    if(!w)return;
+    if($('logCustomTitle')) $('logCustomTitle').value=w.title||'';
+    if($('logDay') && !$('logDay').value) $('logDay').value=w.day||'';
+    if($('logSets') && !$('logSets').value) $('logSets').value=w.sets||'';
+    if($('logReps') && !$('logReps').value) $('logReps').value=w.reps||'';
+  });
+
   $('workoutLogForm')?.addEventListener('submit',async e=>{
     e.preventDefault();
     const customerId=$('logCustomer').value;
+    const customTitle=$('logCustomTitle')?.value.trim()||'';
     const wi=$('logWorkout').value==='' ? -1 : Number($('logWorkout').value);
     const w=wi>=0?workouts[wi]:null;
-    const customTitle=$('logCustomTitle')?.value.trim()||'';
     const title=customTitle || w?.title || '';
     const day=$('logDay')?.value.trim() || w?.day || '';
     if(!getCustomer(customerId))return alert('اختر اللاعب.');
-    if(!title)return alert('اختر تمرينًا من المكتبة أو اكتب اسم التمرين مباشرة.');
+    if(!title)return alert('اكتب اسم التمرين أولًا.');
     const sets=Math.max(0,Number($('logSets').value||0)), weight=Math.max(0,Number($('logWeight').value||0));
     const payload={customer_id:customerId,workout_title:title,workout_day:day,workout_date:$('logDate').value||today(),sets_completed:sets,reps:$('logReps').value.trim(),weight,duration:$('logDuration').value.trim(),notes:$('logNotes').value.trim(),created_by:(await supabase.auth.getUser()).data.user?.id||null};
     const {error}=await supabase.from('workout_logs').insert(payload);
     if(error)return alert('تعذر حفظ تمرين اللاعب:\n\n'+(error.message||error.details||''));
-    e.target.reset();$('logDate').value=today();await refresh();$('logCustomer').value=customerId;
-    alert('تمت إضافة التمرين للاعب بنجاح. سيظهر له في بوابة اللاعب عند تسجيل الدخول.');
+    e.target.reset();
+    $('logDate').value=today();
+    await refresh();
+    $('logCustomer').value=customerId;
+    alert('تمت إضافة التمرين للاعب مباشرة. سيظهر في بوابة اللاعب عند تسجيل الدخول من جديد.');
+
   });
 
   $('debtForm')?.addEventListener('submit',async e=>{

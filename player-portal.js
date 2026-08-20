@@ -40,7 +40,10 @@
 
   form?.addEventListener('submit',async e=>{
     e.preventDefault();
-    const phone=normalizePhone($('playerPhone').value), pin=$('playerPin').value.trim(), msg=$('playerLoginMsg');
+    const rawPhone=$('playerPhone').value;
+    const phone=normalizePhone(rawPhone), pin=$('playerPin').value.trim(), msg=$('playerLoginMsg');
+    if(!phone || !/^\d{7,15}$/.test(phone)){ msg.textContent='أدخل رقم الهاتف بشكل صحيح، مثال: 0524500450.'; return; }
+    if(!/^\d{4,12}$/.test(pin)){ msg.textContent='أدخل PIN مكوّنًا من 4 إلى 12 رقمًا.'; return; }
     const supabase = window.supabaseClient;
     if(!supabase){msg.textContent='تعذر تحميل الاتصال بقاعدة البيانات. أعد تحميل الصفحة وحاول مرة أخرى.';return;}
     msg.textContent='جاري التحقق...';
@@ -67,7 +70,7 @@
         ? 'بوابة اللاعب غير مكتملة في قاعدة البيانات. يجب تشغيل قسم Player Portal من ملف supabase-schema.sql في Supabase ثم إعادة المحاولة.'
         : message.includes('PLAYER_LOGIN_RPC_DENIED')
         ? 'صلاحية تسجيل دخول اللاعب غير مفعّلة في Supabase. شغّل قسم Player Portal من ملف supabase-schema.sql ثم أعد المحاولة.'
-        : 'بيانات الدخول غير صحيحة أو لم يتم تفعيل حساب اللاعب بعد.';
+        : 'بيانات الدخول غير صحيحة. تأكد من رقم الهاتف وPIN، وإذا كان PIN جديدًا فعيّنه من زر PIN في لوحة الإدارة.';
     }
   });
   $('playerLogout')?.addEventListener('click',()=>{player=null;sessionStorage.removeItem('fitness_player_session');dash.hidden=true;loginBox.hidden=false;$('playerLoginMsg').textContent='تم تسجيل الخروج.';});

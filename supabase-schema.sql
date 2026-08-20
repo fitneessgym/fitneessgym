@@ -380,19 +380,27 @@ revoke all on public.player_login_attempts from public, anon, authenticated;
 -- Normalize Palestinian phone numbers so 05xxxxxxxx, +9705xxxxxxxx and 009705xxxxxxxx match.
 create or replace function public.normalize_player_phone(p_phone text)
 returns text
-language sql
+language plpgsql
 immutable
 as $$
-  select case
-    when regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g') like '00970%'
-      then substr(regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g'), 6)
-    when regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g') like '970%'
-      then substr(regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g'), 4)
-    when regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g') like '5%' 
-         and length(regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g')) = 9
-      then '0' || regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g')
-    else regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g')
-  end
+declare
+  d text;
+begin
+  d := regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g');
+  -- Normalize common Palestinian mobile formats:
+  -- 05xxxxxxxx, 5xxxxxxxx, 9705xxxxxxxx, +9705xxxxxxxx, 009705xxxxxxxx.
+  if d like '00970%' then
+    d := substr(d, 6);
+  elsif d like '970%' then
+    d := substr(d, 4);
+  end if;
+
+  if d like '5%' and length(d) = 9 then
+    d := '0' || d;
+  end if;
+
+  return d;
+end;
 $$;
 
 create index if not exists customers_player_phone_lookup_idx
@@ -443,13 +451,11 @@ declare
   v_phone_key text;
   pin_value text;
   attempt public.player_login_attempts%rowtype;
-  is_valid boolean := false;
 begin
   normalized_phone := public.normalize_player_phone(p_phone);
   pin_value := trim(coalesce(p_pin,''));
   v_phone_key := encode(digest(normalized_phone, 'sha256'), 'hex');
 
-  -- Reject obviously malformed credentials before touching customer records.
   if length(normalized_phone) < 7 or length(normalized_phone) > 15
      or pin_value !~ '^[0-9]{4,12}$' then
     raise exception 'INVALID_PLAYER_LOGIN';
@@ -459,19 +465,25 @@ begin
   from public.player_login_attempts
   where phone_key = v_phone_key;
 
-  -- Five failed attempts within 15 minutes locks this phone for 15 minutes.
   if found and attempt.locked_until is not null and attempt.locked_until > now() then
     raise exception 'TOO_MANY_PLAYER_LOGIN_ATTEMPTS';
   end if;
 
+  /*
+    Match normalized phone numbers. PINs are accepted in both supported
+    formats used by older installations: bcrypt and legacy SHA-256.
+    This keeps existing players working while upgrading old hashes.
+  */
   select * into c
   from public.customers
   where public.normalize_player_phone(phone) = normalized_phone
+    and player_pin_hash is not null
     and (
-      -- New format: bcrypt via pgcrypto.
-      (player_pin_hash like '$2%' and player_pin_hash = crypt(pin_value, player_pin_hash))
-      -- Backward compatibility: existing SHA-256 hashes are upgraded after a successful login.
-      or (length(player_pin_hash) = 64 and player_pin_hash = encode(digest(pin_value, 'sha256'), 'hex'))
+      player_pin_hash = crypt(pin_value, player_pin_hash)
+      or (
+        length(player_pin_hash) = 64
+        and player_pin_hash = encode(digest(pin_value, 'sha256'), 'hex')
+      )
     )
   order by created_at desc
   limit 1;
@@ -482,10 +494,7 @@ begin
       values (v_phone_key, 1, now(), null, now());
     elsif attempt.first_failed_at < now() - interval '15 minutes' then
       update public.player_login_attempts
-      set failed_attempts = 1,
-          first_failed_at = now(),
-          locked_until = null,
-          updated_at = now()
+      set failed_attempts = 1, first_failed_at = now(), locked_until = null, updated_at = now()
       where phone_key = v_phone_key;
     else
       update public.player_login_attempts
@@ -498,20 +507,17 @@ begin
     raise exception 'INVALID_PLAYER_LOGIN';
   end if;
 
-  -- Upgrade legacy SHA-256 PINs to salted bcrypt on the first successful login.
   if length(c.player_pin_hash) = 64 then
     update public.customers
-    set player_pin_hash = crypt(pin_value, gen_salt('bf', 12)),
-        updated_at = now()
+    set player_pin_hash = crypt(pin_value, gen_salt('bf', 12)), updated_at = now()
     where id = c.id;
-    c.player_pin_hash := null;
   end if;
 
   delete from public.player_login_attempts where phone_key = v_phone_key;
 
-  -- Return only the fields the player portal actually needs.
   return jsonb_build_object(
     'customer', jsonb_build_object(
+      'id', c.id,
       'first_name', c.first_name,
       'second_name', c.second_name,
       'last_name', c.last_name,
@@ -558,6 +564,13 @@ $$;
 revoke all on function public.player_login(text,text) from public;
 grant execute on function public.normalize_player_phone(text) to anon, authenticated;
 grant execute on function public.player_login(text,text) to anon, authenticated;
+
+-- Admin helper: safely set/reset a player's PIN from the dashboard.
+-- Run this migration once; the browser continues to use set_player_pin().
+revoke all on function public.player_login(text,text) from public;
+grant execute on function public.player_login(text,text) to anon, authenticated;
+
+
 
 -- Refresh PostgREST schema cache after this migration.
 notify pgrst, 'reload schema';
