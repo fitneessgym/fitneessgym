@@ -9,7 +9,7 @@
 <header><div class="wrap nav">
 <a class="brand" href="#home"><img src="logo.jpeg"><span id="brandText">FITNESS GYM</span></a>
 <button class="menu">☰</button>
-<nav><a href="#home">الرئيسية</a><a href="#about">عن النادي</a><a href="#services">الخدمات</a><a href="#plans">الاشتراكات</a><a href="#products">المنتجات</a><a href="#gallery">المعرض</a><a href="#daily-workouts">التدريبات اليومية</a><a href="#contact">تواصل</a><a href="admin-login.html">دخول الإدارة</a></nav>
+<nav><a href="#home">الرئيسية</a><a href="#about">عن النادي</a><a href="#services">الخدمات</a><a href="#plans">الاشتراكات</a><a href="#products">المنتجات</a><a href="#gallery">المعرض</a><a href="#daily-workouts">التدريبات اليومية</a><a href="#calories">حاسبة السعرات</a><a href="#contact">تواصل</a><a href="admin-login.html">دخول الإدارة</a></nav>
 </div></header>
 
 <section id="home" class="hero"><div class="wrap hero-content">
@@ -34,29 +34,31 @@
 <section id="products" class="section"><div class="wrap"><div class="tag">المتجر</div><h2>منتجات FITNESS GYM</h2><div class="cards" id="productsList"></div></div></section>
 
 <section id="daily-workouts" class="section daily-workouts"><div class="wrap">
-<div class="tag">التدريبات اليومية</div><h2>برنامج اليوم</h2>
-<p class="workout-intro">تمارين منظمة مع الجهاز المطلوب، عدد الجولات والتكرارات ووقت الراحة. اختر الوزن المناسب لمستواك وحافظ على أداء الحركة بشكل صحيح.</p>
-<div class="workout-grid">
-<article class="workout-card">
-<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Treadmill-gym.jpg" alt="جهاز المشي" loading="lazy">
-<div class="workout-body"><span class="workout-day">إحماء</span><h3>المشي / الجري على جهاز المشي</h3><p><b>المطلوب:</b> 10 دقائق — سرعة متوسطة حسب لياقتك.</p><div class="workout-meta"><span>⏱ 10 د</span><span>🔥 كارديو</span></div></div></article>
-<article class="workout-card">
-<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Bench_Press.jpg" alt="جهاز بنش برس" loading="lazy">
-<div class="workout-body"><span class="workout-day">صدر</span><h3>Bench Press</h3><p><b>المطلوب:</b> 4 جولات × 8–12 تكرار — راحة 90 ثانية.</p><div class="workout-meta"><span>4 × 8–12</span><span>💪 صدر</span></div></div></article>
-<article class="workout-card">
-<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Lat_Pull_down_Machine.jpg" alt="جهاز سحب علوي" loading="lazy">
-<div class="workout-body"><span class="workout-day">ظهر</span><h3>Lat Pulldown</h3><p><b>المطلوب:</b> 4 جولات × 10–12 تكرار — راحة 60–90 ثانية.</p><div class="workout-meta"><span>4 × 10–12</span><span>🏋️ ظهر</span></div></div></article>
-<article class="workout-card">
-<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Shoulder_Press.jpg" alt="جهاز ضغط الكتف" loading="lazy">
-<div class="workout-body"><span class="workout-day">أكتاف</span><h3>Shoulder Press</h3><p><b>المطلوب:</b> 3 جولات × 8–12 تكرار — راحة 60–90 ثانية.</p><div class="workout-meta"><span>3 × 8–12</span><span>🦾 أكتاف</span></div></div></article>
-<article class="workout-card">
-<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Leg_Press.jpg" alt="جهاز ضغط الأرجل" loading="lazy">
-<div class="workout-body"><span class="workout-day">أرجل</span><h3>Leg Press</h3><p><b>المطلوب:</b> 4 جولات × 10–15 تكرار — راحة 90 ثانية.</p><div class="workout-meta"><span>4 × 10–15</span><span>🦵 أرجل</span></div></div></article>
-<article class="workout-card">
-<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Personal_Training_at_a_Gym_-_Cable_Crossover.JPG" alt="جهاز الكابل" loading="lazy">
-<div class="workout-body"><span class="workout-day">ذراع / صدر</span><h3>Cable Crossover</h3><p><b>المطلوب:</b> 3 جولات × 12–15 تكرار — راحة 60 ثانية.</p><div class="workout-meta"><span>3 × 12–15</span><span>💥 عزل</span></div></div></article>
+<div class="tag">التدريبات اليومية</div><h2>برنامج التمارين</h2>
+<p class="workout-intro">اختر التمرين المناسب لهدفك، وشاهد الجهاز المطلوب والجولات والتكرارات والراحة. يمكن للإدارة تعديل القائمة والصور من لوحة التحكم.</p>
+<div class="workout-filters" id="workoutFilters"></div>
+<div class="workout-grid" id="workoutList"></div>
+<div class="workout-note"><b>ملاحظة:</b> البرنامج عام للتوجيه وليس خطة شخصية. ابدأ بوزن مناسب وتأكد من وضعية الجهاز والحركة الصحيحة.</div>
+</div></section>
+
+<section id="calories" class="section calorie-section"><div class="wrap">
+<div class="tag">السعرات والتغذية</div><h2 id="calorieTitle">حاسبة السعرات الحرارية</h2>
+<p id="calorieNote" class="calorie-intro">الحساب تقديري للتوجيه العام وليس تشخيصًا أو خطة غذائية شخصية.</p>
+<div class="calorie-layout">
+<form id="calorieForm" class="calorie-form">
+<div class="field-grid-public">
+<label>الجنس<select id="calSex"><option value="male">ذكر</option><option value="female">أنثى</option></select></label>
+<label>العمر<input id="calAge" type="number" min="14" max="100" required placeholder="مثال: 25"></label>
+<label>الوزن (كغ)<input id="calWeight" type="number" min="30" max="300" step="0.1" required></label>
+<label>الطول (سم)<input id="calHeight" type="number" min="120" max="230" required></label>
+<label>النشاط<select id="calActivity"><option value="1.2">قليل جدًا</option><option value="1.375">خفيف</option><option value="1.55" selected>متوسط</option><option value="1.725">عالٍ</option><option value="1.9">عالٍ جدًا</option></select></label>
+<label>نوع الجسم<select id="calBody"><option value="ectomorph">نحيف / Ectomorph</option><option value="mesomorph" selected>رياضي / Mesomorph</option><option value="endomorph">ممتلئ / Endomorph</option></select></label>
+<label class="full">الهدف<select id="calGoal"><option value="build">بناء عضل</option><option value="cardio">كارديو / لياقة</option><option value="cut">تنشيف / خسارة دهون</option></select></label>
+</div><button class="btn orange" type="submit">احسب احتياجي اليومي</button>
+</form>
+<div id="calorieResult" class="calorie-result"><div class="result-placeholder">أدخل بياناتك واضغط «احسب» لمعرفة تقدير السعرات.</div></div>
 </div>
-<div class="workout-note"><b>ملاحظة:</b> هذا برنامج عام وليس وصفة تدريب شخصية. إذا كنت مبتدئًا، ابدأ بوزن خفيف واطلب من المدرب شرح وضعية الجهاز والحركة قبل زيادة الوزن.</div>
+<p class="calorie-disclaimer">نوع الجسم (Ectomorph/Mesomorph/Endomorph) تصنيف وصفي شائع وليس عاملًا طبيًا مثبتًا لتحديد السعرات؛ لذلك يعتمد الحساب الأساسي على الجنس والعمر والوزن والطول والنشاط والهدف.</p>
 </div></section>
 
 <section id="gallery" class="section dark"><div class="wrap"><div class="tag">المعرض</div><h2 id="galleryTitle">أجواء FITNESS GYM</h2>

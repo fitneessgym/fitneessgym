@@ -35,3 +35,10 @@
 - Products now have a "شراء عبر واتساب" button.
 - Admin customer list has a WhatsApp message button.
 - Admin invoices have a WhatsApp send button that sends a formatted invoice to the customer's phone.
+
+## التحديث الجديد: التدريبات وحاسبة السعرات
+- أضيف قسم تدريبات يومية قابل للإدارة مع 18 تمرينًا افتراضيًا.
+- من لوحة تحرير الموقع > التدريبات اليومية يمكن إضافة/تعديل/حذف التمارين وتغيير الجهاز والجولات والتكرارات والهدف.
+- يمكن رفع صورة جهاز من الكمبيوتر/الهاتف، وتُرفع إلى Supabase Storage في bucket باسم `site-media`.
+- أضيفت حاسبة سعرات تعتمد على معادلة Mifflin-St Jeor مع النشاط والهدف (بناء/كارديو/تنشيف). نوع الجسم يظهر كتصنيف وصفي ولا يُستخدم كعامل طبي مستقل.
+- قبل رفع صور التمارين، شغّل ملف `supabase-schema.sql` كاملًا في Supabase SQL Editor لإنشاء bucket والصلاحيات.

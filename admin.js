@@ -11,48 +11,53 @@
   const cid=()=>`CUS-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
   const iid=()=>`INV-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
   const pid=()=>`PAY-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+  const fullName=c=>[c?.first_name,c?.second_name,c?.last_name].filter(Boolean).join(' ') || c?.name || '—';
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
   const waNumber=v=>{let d=String(v||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d='970'+d.slice(1);return d;};
   const waLink=(phone,text)=>'https://wa.me/'+waNumber(phone)+'?text='+encodeURIComponent(text);
   const invoiceMessage=(i,c)=>['فاتورة FITNESS GYM 🧾','', 'رقم الفاتورة: '+i.id,'العميل: '+(c?.name||'—'),'النوع: '+(i.type||'—'),'المبلغ: '+money(i.amount),'التاريخ: '+(i.date||'—'), i.note ? 'الوصف: '+i.note : '', '', 'شكرًا لتعاملكم مع FITNESS GYM 💪'].filter(Boolean).join('\n');
   const customerMessage=c=>['مرحبًا '+(c?.name||'')+' 👋','معك FITNESS GYM.','كيف يمكننا مساعدتك اليوم؟ 💪'].join('\n');
-  let customers=[],invoices=[],payments=[];
+  let customers=[],invoices=[],payments=[],workoutLogs=[],workouts=[];
 
   const getCustomer=id=>customers.find(c=>String(c.id)===String(id));
   const debt=c=>Math.max(0,Number(c.total||0)-Number(c.paid||0));
 
   async function loadData(){
-    const [c,i,p]=await Promise.all([
+    const [c,i,p,w,st]=await Promise.all([
       supabase.from('customers').select('*').order('created_at',{ascending:false}),
       supabase.from('invoices').select('*').order('date',{ascending:false}),
-      supabase.from('payments').select('*').order('date',{ascending:false})
+      supabase.from('payments').select('*').order('date',{ascending:false}),
+      supabase.from('workout_logs').select('*').order('workout_date',{ascending:false}).order('created_at',{ascending:false}),
+      supabase.from('site_settings').select('data').eq('id',1).maybeSingle()
     ]);
     if(c.error) throw c.error;
     if(i.error) throw i.error;
     if(p.error) throw p.error;
-    customers=c.data||[]; invoices=i.data||[]; payments=p.data||[];
+    if(w.error) throw w.error;
+    customers=c.data||[]; invoices=i.data||[]; payments=p.data||[]; workoutLogs=w.data||[];
+    workouts=Array.isArray(st?.data?.workouts)?st.data.workouts:[];
   }
 
   function fillSelects(){
-    const opts=customers.map(c=>`<option value="${esc(c.id)}">${esc(c.name)} — ${esc(c.phone)}</option>`).join('')||'<option value="">لا يوجد عملاء</option>';
-    ['debtCustomer','paymentCustomer','invoiceCustomer'].forEach(id=>{if($(id)) $(id).innerHTML=opts;});
+    const opts=customers.map(c=>`<option value="${esc(c.id)}">${esc(fullName(c))} — ${esc(c.phone)}</option>`).join('')||'<option value="">لا يوجد عملاء</option>';
+    ['debtCustomer','paymentCustomer','invoiceCustomer','logCustomer','logFilterCustomer'].forEach(id=>{if($(id)) $(id).innerHTML=opts;});
   }
 
   function renderCustomers(){
     const body=$('customersBody'); if(!body)return;
     const q=($('customerSearch')?.value||'').trim().toLocaleLowerCase();
-    body.innerHTML=customers.filter(c=>`${c.name||''} ${c.phone||''}`.toLocaleLowerCase().includes(q)).map(c=>`
-      <tr><td><b>${esc(c.name)}</b><small>${esc(c.phone)}</small></td>
+    body.innerHTML=customers.filter(c=>`${fullName(c)} ${c.phone||''}`.toLocaleLowerCase().includes(q)).map(c=>`
+      <tr><td><b>${esc(fullName(c))}</b><small>${esc(c.phone)}</small></td>
       <td>${esc(c.plan||'')}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(debt(c))}</td>
       <td>${esc(c.start||'—')}<br>${esc(c.end||'—')}</td>
-      <td><button class="mini" type="button" onclick="messageCustomerWhatsApp('${esc(c.id)}')">واتساب</button> <button class="mini danger" type="button" onclick="deleteCustomer('${esc(c.id)}')">حذف</button></td></tr>`).join('')
+      <td><button class="mini" type="button" onclick="openPlayerWorkoutLog('${esc(c.id)}')">تمارينه</button> <button class="mini" type="button" onclick="messageCustomerWhatsApp('${esc(c.id)}')">واتساب</button> <button class="mini danger" type="button" onclick="deleteCustomer('${esc(c.id)}')">حذف</button></td></tr>`).join('')
       ||'<tr><td colspan="7" class="empty">لا يوجد عملاء بعد</td></tr>';
   }
 
   function renderDebts(){
     const body=$('debtsBody'); if(!body)return;
     body.innerHTML=customers.filter(c=>debt(c)>0).map(c=>`
-      <tr><td><b>${esc(c.name)}</b></td><td>${esc(c.phone)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td class="debt-cell">${money(debt(c))}</td>
+      <tr><td><b>${esc(fullName(c))}</b></td><td>${esc(c.phone)}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td class="debt-cell">${money(debt(c))}</td>
       <td><button class="mini" type="button" onclick="quickPay('${esc(c.id)}')">تسديد</button></td></tr>`).join('')
       ||'<tr><td colspan="6" class="empty">لا توجد ديون حالياً 🎉</td></tr>';
   }
@@ -74,23 +79,54 @@
     if($('statInvoices'))$('statInvoices').textContent=money(inv);
     if($('statDebts'))$('statDebts').textContent=money(d);
     if($('statPaid'))$('statPaid').textContent=money(p);
-    renderCustomers();renderDebts();renderInvoices();fillSelects();
+    renderCustomers();renderDebts();renderInvoices();renderWorkoutLogs();fillSelects();fillWorkoutSelect();
     window.renderProducts?.();
   }
+
+  function fillWorkoutSelect(){
+    const opts=workouts.map((w,i)=>`<option value="${i}">${esc(w.day||'')} — ${esc(w.title||'تمرين')}</option>`).join('')||'<option value="">لا توجد تمارين؛ أضفها من تعديل الموقع</option>';
+    if($('logWorkout'))$('logWorkout').innerHTML=opts;
+    if($('logFilterCustomer')){
+      const current=$('logFilterCustomer').value;
+      $('logFilterCustomer').innerHTML='<option value="">كل اللاعبين</option>'+customers.map(c=>`<option value="${esc(c.id)}">${esc(fullName(c))}</option>`).join('');
+      $('logFilterCustomer').value=current;
+    }
+  }
+  function renderWorkoutLogs(){
+    const body=$('workoutLogsBody'); if(!body)return;
+    const cidFilter=$('logFilterCustomer')?.value||''; const dateFilter=$('logFilterDate')?.value||'';
+    const rows=workoutLogs.filter(l=>(!cidFilter||String(l.customer_id)===String(cidFilter))&&(!dateFilter||l.workout_date===dateFilter));
+    body.innerHTML=rows.map(l=>{const c=getCustomer(l.customer_id);return `<tr><td><b>${esc(fullName(c))}</b></td><td>${esc(l.workout_title)}<small>${esc(l.workout_day||'')}</small></td><td>${esc(l.workout_date||'')}</td><td>${esc(l.sets_completed)}</td><td>${esc(l.reps||'—')}</td><td>${Number(l.weight||0)?esc(l.weight)+' كغ':'—'}</td><td>${esc(l.duration||'—')}</td><td>${esc(l.notes||'—')}</td><td><button class="mini danger" type="button" onclick="deleteWorkoutLog('${esc(l.id)}')">حذف</button></td></tr>`}).join('')||'<tr><td colspan="9" class="empty">لا يوجد سجل تمارين بعد.</td></tr>';
+  }
+  window.openPlayerWorkoutLog=id=>{document.querySelector('[data-tab="workouts"]')?.click();if($('logFilterCustomer')){$('logFilterCustomer').value=id;renderWorkoutLogs();}if($('logCustomer'))$('logCustomer').value=id;};
+  window.deleteWorkoutLog=async id=>{if(!confirm('حذف سجل التمرين؟'))return;const {error}=await supabase.from('workout_logs').delete().eq('id',id);if(error)return alert('تعذر حذف السجل:\n\n'+(error.message||error.details||''));await refresh();};
 
   async function refresh(){try{await loadData();render();}catch(e){console.error(e);alert('تعذر تحميل بيانات الإدارة:\\n\\n'+(e.message||e.details||'خطأ غير معروف'));}}
 
   $('customerForm')?.addEventListener('submit',async e=>{
     e.preventDefault();
-    const name=$('customerName').value.trim(),phone=$('customerPhone').value.trim();
+    const first=$('customerFirstName').value.trim(),second=$('customerSecondName').value.trim(),last=$('customerLastName').value.trim(),phone=$('customerPhone').value.trim();
+    const name=[first,second,last].join(' ').trim();
     const total=Number($('customerTotal').value||0),paid=Number($('customerPaid').value||0);
-    if(!name||!phone)return alert('أدخل اسم العميل ورقم الهاتف.');
+    if(!first||!second||!last||!phone)return alert('أدخل الاسم الأول والثاني والأخير ورقم الهاتف.');
     if(paid>total)return alert('المبلغ المدفوع لا يمكن أن يكون أكبر من الإجمالي.');
-    if(customers.some(c=>String(c.name||'').trim().toLocaleLowerCase()===name.toLocaleLowerCase()))return alert('يوجد عميل آخر بنفس الاسم.');
-    const payload={id:cid(),name,phone,plan:$('customerPlan').value,total,paid,start:$('customerStart').value||null,end:$('customerEnd').value||null};
+    if(customers.some(c=>fullName(c).trim().toLocaleLowerCase()===name.toLocaleLowerCase()))return alert('يوجد لاعب آخر بنفس الاسم.');
+    const payload={id:cid(),name,first_name:first,second_name:second,last_name:last,phone,plan:$('customerPlan').value,total,paid,start:$('customerStart').value||null,end:$('customerEnd').value||null};
     const {error}=await supabase.from('customers').insert(payload);
     if(error)return alert('تعذر حفظ العميل:\\n\\n'+(error.message||error.details||''));
     e.target.reset();await refresh();alert('تم حفظ العميل بنجاح.');
+  });
+
+  $('workoutLogForm')?.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const customerId=$('logCustomer').value, wi=Number($('logWorkout').value), w=workouts[wi];
+    if(!getCustomer(customerId))return alert('اختر اللاعب.');
+    if(!w)return alert('اختر التمرين.');
+    const sets=Math.max(0,Number($('logSets').value||0)), weight=Math.max(0,Number($('logWeight').value||0));
+    const payload={customer_id:customerId,workout_title:w.title||'تمرين',workout_day:w.day||'',workout_date:$('logDate').value||today(),sets_completed:sets,reps:$('logReps').value.trim(),weight,duration:$('logDuration').value.trim(),notes:$('logNotes').value.trim(),created_by:(await supabase.auth.getUser()).data.user?.id||null};
+    const {error}=await supabase.from('workout_logs').insert(payload);
+    if(error)return alert('تعذر حفظ سجل التمرين:\n\n'+(error.message||error.details||''));
+    e.target.reset();$('logDate').value=today();await refresh();$('logCustomer').value=customerId;alert('تم حفظ تمرين اللاعب بنجاح.');
   });
 
   $('debtForm')?.addEventListener('submit',async e=>{
@@ -126,6 +162,9 @@
   });
 
   $('customerSearch')?.addEventListener('input',renderCustomers);
+  $('logFilterCustomer')?.addEventListener('change',renderWorkoutLogs);
+  $('logFilterDate')?.addEventListener('change',renderWorkoutLogs);
+  if($('logDate'))$('logDate').value=today();
   if($('invoiceDate'))$('invoiceDate').value=today();
 
   document.querySelectorAll('.dash-tab').forEach(btn=>btn.addEventListener('click',()=>{
@@ -168,7 +207,7 @@
   };
 
   window.exportData=async()=>{
-    const blob=new Blob([JSON.stringify({customers,invoices,payments},null,2)],{type:'application/json'});
+    const blob=new Blob([JSON.stringify({customers,invoices,payments,workoutLogs},null,2)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fitness-gym-data.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   };

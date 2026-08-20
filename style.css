@@ -92,3 +92,35 @@ td small{display:block;color:var(--muted)}
 .workout-note b{color:var(--orange)}
 @media(max-width:950px){.workout-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.workout-grid{grid-template-columns:1fr}.workout-card>img{height:230px}}
+
+/* التمارين القابلة للإدارة */
+.workout-filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}
+.workout-filter{border:1px solid var(--line);background:#101415;color:#ddd;border-radius:999px;padding:8px 15px;font:700 13px Cairo;cursor:pointer}
+.workout-filter.active,.workout-filter:hover{background:var(--orange);border-color:var(--orange);color:#111}
+.workout-media{position:relative}
+.workout-media>img,.workout-placeholder{width:100%;height:220px;object-fit:cover;display:block;background:#171a1b}
+.workout-placeholder{display:grid;place-items:center;font-size:58px}
+.workout-goal{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800}
+.workout-admin-preview{width:180px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);margin-top:8px}
+
+/* حاسبة السعرات */
+.calorie-section{background:#090c0d;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.calorie-intro{color:var(--muted);max-width:800px}
+.calorie-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:stretch;margin-top:25px}
+.calorie-form,.calorie-result{background:#0d1011;border:1px solid var(--line);border-radius:16px;padding:22px}
+.calorie-form{display:grid;gap:18px}
+.field-grid-public{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field-grid-public label{display:grid;gap:6px;font-weight:700;font-size:14px}
+.field-grid-public label.full{grid-column:1/-1}
+.field-grid-public input,.field-grid-public select{width:100%;background:#090b0c;color:#fff;border:1px solid var(--line);border-radius:8px;padding:11px;font:14px Cairo}
+.result-placeholder{height:100%;display:grid;place-items:center;text-align:center;color:var(--muted);min-height:260px}
+.result-main{display:grid;gap:5px;text-align:center;padding:10px 0 20px;border-bottom:1px solid var(--line)}
+.result-main span{color:var(--muted)}
+.result-main strong{font-size:38px;color:var(--orange)}
+.result-main small{color:var(--muted)}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+.result-grid div{background:#101415;border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:4px}
+.result-grid b{font-size:16px}.result-grid small{color:var(--muted)}
+.result-tip,.calorie-disclaimer{color:var(--muted);font-size:13px;line-height:1.8}.calorie-disclaimer{margin-top:16px}
+@media(max-width:850px){.calorie-layout{grid-template-columns:1fr}}
+@media(max-width:520px){.field-grid-public{grid-template-columns:1fr}.field-grid-public label.full{grid-column:auto}.result-main strong{font-size:30px}}

@@ -1,0 +1,7 @@
+
+.name-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;}
+.name-grid input{min-width:0;}
+.panel-help{font-size:.9rem;line-height:1.7;opacity:.82;margin:0 0 10px;}
+.filters-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.filters-row select,.filters-row input{min-width:150px;padding:9px;border-radius:10px;}
+@media(max-width:800px){.name-grid{grid-template-columns:1fr;}.filters-row{width:100%;}.filters-row select,.filters-row input{width:100%;}}
