@@ -16,3 +16,8 @@ Important:
 
 FIX: Product saving is UUID-safe. admin-store.js no longer sends PROD-* into products.id.
 Run supabase-schema.sql once in Supabase SQL Editor to add missing image/default UUID compatibility.
+
+PLAYER PORTAL FIX V4
+- Phone normalization for Palestinian local/international formats.
+- Clear Supabase RPC migration errors.
+- See README_PLAYER_PORTAL_AR.md for the required Supabase SQL step.

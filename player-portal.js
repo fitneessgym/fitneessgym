@@ -5,6 +5,14 @@
   const money = v => `₪${Number(v||0).toLocaleString('en-US')}`;
   const dateLabel = v => { if(!v) return '—'; try{return new Date(v+'T00:00:00').toLocaleDateString('ar-PS',{year:'numeric',month:'long',day:'numeric'});}catch(_){return v;} };
   const today = () => new Date().toISOString().slice(0,10);
+  // Accept local Palestinian numbers (05xxxxxxxx) and international forms (+9705xxxxxxxx / 009705xxxxxxxx).
+  const normalizePhone = value => {
+    let d = String(value ?? '').replace(/\D/g,'');
+    if(d.startsWith('00970')) d = d.slice(5);
+    else if(d.startsWith('970')) d = d.slice(3);
+    if(d.startsWith('5') && d.length === 9) d = '0' + d;
+    return d;
+  };
   const loginBox = $('playerLoginBox'), dash = $('playerDashboard'), form = $('playerLoginForm');
   let player = null;
 
@@ -32,13 +40,21 @@
 
   form?.addEventListener('submit',async e=>{
     e.preventDefault();
-    const phone=$('playerPhone').value.trim(), pin=$('playerPin').value.trim(), msg=$('playerLoginMsg');
+    const phone=normalizePhone($('playerPhone').value), pin=$('playerPin').value.trim(), msg=$('playerLoginMsg');
     const supabase = window.supabaseClient;
     if(!supabase){msg.textContent='تعذر تحميل الاتصال بقاعدة البيانات. أعد تحميل الصفحة وحاول مرة أخرى.';return;}
     msg.textContent='جاري التحقق...';
     try{
       const {data,error}=await supabase.rpc('player_login',{p_phone:phone,p_pin:pin});
-      if(error)throw error;
+      if(error){
+        const code=String(error.code||'');
+        const message=String(error.message||'');
+        if(code==='PGRST202' || /player_login/i.test(message) && /does not exist|not found|schema cache/i.test(message))
+          throw new Error('PLAYER_LOGIN_RPC_MISSING');
+        if(code==='42501' || /permission denied|execute/i.test(message))
+          throw new Error('PLAYER_LOGIN_RPC_DENIED');
+        throw error;
+      }
       if(!data?.customer)throw new Error('INVALID_LOGIN');
       sessionStorage.setItem('fitness_player_session','1');
       render(data); msg.textContent=''; form.reset();
@@ -47,6 +63,10 @@
       const message=String(err?.message||'');
       msg.textContent=message.includes('TOO_MANY_PLAYER_LOGIN_ATTEMPTS')
         ? 'تم إيقاف محاولات الدخول مؤقتًا بسبب كثرة المحاولات. حاول مرة أخرى بعد 15 دقيقة.'
+        : message.includes('PLAYER_LOGIN_RPC_MISSING')
+        ? 'بوابة اللاعب غير مكتملة في قاعدة البيانات. يجب تشغيل قسم Player Portal من ملف supabase-schema.sql في Supabase ثم إعادة المحاولة.'
+        : message.includes('PLAYER_LOGIN_RPC_DENIED')
+        ? 'صلاحية تسجيل دخول اللاعب غير مفعّلة في Supabase. شغّل قسم Player Portal من ملف supabase-schema.sql ثم أعد المحاولة.'
         : 'بيانات الدخول غير صحيحة أو لم يتم تفعيل حساب اللاعب بعد.';
     }
   });

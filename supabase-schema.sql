@@ -377,8 +377,26 @@ create table if not exists public.player_login_attempts (
 alter table public.player_login_attempts enable row level security;
 revoke all on public.player_login_attempts from public, anon, authenticated;
 
+-- Normalize Palestinian phone numbers so 05xxxxxxxx, +9705xxxxxxxx and 009705xxxxxxxx match.
+create or replace function public.normalize_player_phone(p_phone text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g') like '00970%'
+      then substr(regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g'), 6)
+    when regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g') like '970%'
+      then substr(regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g'), 4)
+    when regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g') like '5%' 
+         and length(regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g')) = 9
+      then '0' || regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g')
+    else regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g')
+  end
+$$;
+
 create index if not exists customers_player_phone_lookup_idx
-  on public.customers (phone);
+  on public.customers (public.normalize_player_phone(phone));
 create index if not exists workout_logs_customer_date_idx
   on public.workout_logs (customer_id, workout_date, created_at);
 create index if not exists nutrition_customer_idx
@@ -427,7 +445,7 @@ declare
   attempt public.player_login_attempts%rowtype;
   is_valid boolean := false;
 begin
-  normalized_phone := regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g');
+  normalized_phone := public.normalize_player_phone(p_phone);
   pin_value := trim(coalesce(p_pin,''));
   v_phone_key := encode(digest(normalized_phone, 'sha256'), 'hex');
 
@@ -448,7 +466,7 @@ begin
 
   select * into c
   from public.customers
-  where regexp_replace(coalesce(phone,''), '[^0-9]', '', 'g') = normalized_phone
+  where public.normalize_player_phone(phone) = normalized_phone
     and (
       -- New format: bcrypt via pgcrypto.
       (player_pin_hash like '$2%' and player_pin_hash = crypt(pin_value, player_pin_hash))
@@ -538,6 +556,7 @@ end;
 $$;
 
 revoke all on function public.player_login(text,text) from public;
+grant execute on function public.normalize_player_phone(text) to anon, authenticated;
 grant execute on function public.player_login(text,text) to anon, authenticated;
 
 -- Refresh PostgREST schema cache after this migration.

@@ -84,7 +84,7 @@
   }
 
   function fillWorkoutSelect(){
-    const opts=workouts.map((w,i)=>`<option value="${i}">${esc(w.day||'')} — ${esc(w.title||'تمرين')}</option>`).join('')||'<option value="">لا توجد تمارين؛ أضفها من تعديل الموقع</option>';
+    const opts=workouts.map((w,i)=>`<option value="${i}">${esc(w.day||'')} — ${esc(w.title||'تمرين')}</option>`).join('')||'<option value="">لا توجد تمارين في المكتبة — اكتب اسم التمرين أسفل القائمة</option>';
     if($('logWorkout'))$('logWorkout').innerHTML=opts;
     if($('logFilterCustomer')){
       const current=$('logFilterCustomer').value;
@@ -168,14 +168,20 @@
 
   $('workoutLogForm')?.addEventListener('submit',async e=>{
     e.preventDefault();
-    const customerId=$('logCustomer').value, wi=Number($('logWorkout').value), w=workouts[wi];
+    const customerId=$('logCustomer').value;
+    const wi=$('logWorkout').value==='' ? -1 : Number($('logWorkout').value);
+    const w=wi>=0?workouts[wi]:null;
+    const customTitle=$('logCustomTitle')?.value.trim()||'';
+    const title=customTitle || w?.title || '';
+    const day=$('logDay')?.value.trim() || w?.day || '';
     if(!getCustomer(customerId))return alert('اختر اللاعب.');
-    if(!w)return alert('اختر التمرين.');
+    if(!title)return alert('اختر تمرينًا من المكتبة أو اكتب اسم التمرين مباشرة.');
     const sets=Math.max(0,Number($('logSets').value||0)), weight=Math.max(0,Number($('logWeight').value||0));
-    const payload={customer_id:customerId,workout_title:w.title||'تمرين',workout_day:w.day||'',workout_date:$('logDate').value||today(),sets_completed:sets,reps:$('logReps').value.trim(),weight,duration:$('logDuration').value.trim(),notes:$('logNotes').value.trim(),created_by:(await supabase.auth.getUser()).data.user?.id||null};
+    const payload={customer_id:customerId,workout_title:title,workout_day:day,workout_date:$('logDate').value||today(),sets_completed:sets,reps:$('logReps').value.trim(),weight,duration:$('logDuration').value.trim(),notes:$('logNotes').value.trim(),created_by:(await supabase.auth.getUser()).data.user?.id||null};
     const {error}=await supabase.from('workout_logs').insert(payload);
-    if(error)return alert('تعذر حفظ سجل التمرين:\n\n'+(error.message||error.details||''));
-    e.target.reset();$('logDate').value=today();await refresh();$('logCustomer').value=customerId;alert('تم حفظ تمرين اللاعب بنجاح.');
+    if(error)return alert('تعذر حفظ تمرين اللاعب:\n\n'+(error.message||error.details||''));
+    e.target.reset();$('logDate').value=today();await refresh();$('logCustomer').value=customerId;
+    alert('تمت إضافة التمرين للاعب بنجاح. سيظهر له في بوابة اللاعب عند تسجيل الدخول.');
   });
 
   $('debtForm')?.addEventListener('submit',async e=>{
