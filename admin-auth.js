@@ -28,6 +28,14 @@ async function initAdminAuth(){
   }
 }
 
+const PASSWORD_RESET_URL = 'https://fitneessgym.github.io/reset-password.html';
+
+async function requestPasswordReset(email){
+  if(!window.supabaseClient) throw new Error('لم يتم تحميل Supabase.');
+  const {error}=await window.supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:PASSWORD_RESET_URL});
+  if(error) throw error;
+}
+
 const loginForm=document.getElementById('loginForm');
 if(loginForm){
   loginForm.addEventListener('submit',async e=>{
