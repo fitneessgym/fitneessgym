@@ -12,6 +12,10 @@
   const iid=()=>`INV-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
   const pid=()=>`PAY-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const waNumber=v=>{let d=String(v||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d='970'+d.slice(1);return d;};
+  const waLink=(phone,text)=>'https://wa.me/'+waNumber(phone)+'?text='+encodeURIComponent(text);
+  const invoiceMessage=(i,c)=>['فاتورة FITNESS GYM 🧾','', 'رقم الفاتورة: '+i.id,'العميل: '+(c?.name||'—'),'النوع: '+(i.type||'—'),'المبلغ: '+money(i.amount),'التاريخ: '+(i.date||'—'), i.note ? 'الوصف: '+i.note : '', '', 'شكرًا لتعاملكم مع FITNESS GYM 💪'].filter(Boolean).join('\n');
+  const customerMessage=c=>['مرحبًا '+(c?.name||'')+' 👋','معك FITNESS GYM.','كيف يمكننا مساعدتك اليوم؟ 💪'].join('\n');
   let customers=[],invoices=[],payments=[];
 
   const getCustomer=id=>customers.find(c=>String(c.id)===String(id));
@@ -41,7 +45,7 @@
       <tr><td><b>${esc(c.name)}</b><small>${esc(c.phone)}</small></td>
       <td>${esc(c.plan||'')}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(debt(c))}</td>
       <td>${esc(c.start||'—')}<br>${esc(c.end||'—')}</td>
-      <td><button class="mini danger" type="button" onclick="deleteCustomer('${esc(c.id)}')">حذف</button></td></tr>`).join('')
+      <td><button class="mini" type="button" onclick="messageCustomerWhatsApp('${esc(c.id)}')">واتساب</button> <button class="mini danger" type="button" onclick="deleteCustomer('${esc(c.id)}')">حذف</button></td></tr>`).join('')
       ||'<tr><td colspan="7" class="empty">لا يوجد عملاء بعد</td></tr>';
   }
 
@@ -58,7 +62,7 @@
     body.innerHTML=invoices.map(i=>{
       const c=getCustomer(i.customer_id);
       return `<tr><td>${esc(i.id)}</td><td>${c?esc(c.name):'—'}</td><td>${esc(i.type||'')}</td><td>${money(i.amount)}</td><td>${esc(i.date||'—')}</td>
-      <td><button class="mini danger" type="button" onclick="deleteInvoice('${esc(i.id)}')">حذف</button></td></tr>`;
+      <td><button class="mini" type="button" onclick="sendInvoiceWhatsApp('${esc(i.id)}')">واتساب</button> <button class="mini danger" type="button" onclick="deleteInvoice('${esc(i.id)}')">حذف</button></td></tr>`;
     }).join('')||'<tr><td colspan="6" class="empty">لا توجد فواتير بعد</td></tr>';
   }
 
@@ -132,6 +136,22 @@
   }));
 
   window.quickPay=id=>{document.querySelector('[data-tab="debts"]')?.click();if($('paymentCustomer'))$('paymentCustomer').value=id;$('paymentAmount')?.focus();};
+
+  window.messageCustomerWhatsApp=id=>{
+    const c=getCustomer(id);
+    if(!c)return alert('لم يتم العثور على العميل.');
+    if(!waNumber(c.phone))return alert('رقم هاتف العميل غير صالح.');
+    window.open(waLink(c.phone,customerMessage(c)),'_blank');
+  };
+
+  window.sendInvoiceWhatsApp=id=>{
+    const i=invoices.find(x=>String(x.id)===String(id));
+    const c=i?getCustomer(i.customer_id):null;
+    if(!i)return alert('لم يتم العثور على الفاتورة.');
+    if(!c)return alert('لم يتم العثور على العميل المرتبط بالفاتورة.');
+    if(!waNumber(c.phone))return alert('رقم هاتف العميل غير صالح.');
+    window.open(waLink(c.phone,invoiceMessage(i,c)),'_blank');
+  };
 
   window.deleteCustomer=async id=>{
     if(!confirm('حذف العميل وكل فواتيره ودفعاته؟'))return;

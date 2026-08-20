@@ -9,7 +9,7 @@
 <header><div class="wrap nav">
 <a class="brand" href="#home"><img src="logo.jpeg"><span id="brandText">FITNESS GYM</span></a>
 <button class="menu">☰</button>
-<nav><a href="#home">الرئيسية</a><a href="#about">عن النادي</a><a href="#services">الخدمات</a><a href="#plans">الاشتراكات</a><a href="#products">المنتجات</a><a href="#gallery">المعرض</a><a href="#contact">تواصل</a><a href="admin-login.html">دخول الإدارة</a></nav>
+<nav><a href="#home">الرئيسية</a><a href="#about">عن النادي</a><a href="#services">الخدمات</a><a href="#plans">الاشتراكات</a><a href="#products">المنتجات</a><a href="#gallery">المعرض</a><a href="#daily-workouts">التدريبات اليومية</a><a href="#contact">تواصل</a><a href="admin-login.html">دخول الإدارة</a></nav>
 </div></header>
 
 <section id="home" class="hero"><div class="wrap hero-content">
@@ -33,6 +33,32 @@
 
 <section id="products" class="section"><div class="wrap"><div class="tag">المتجر</div><h2>منتجات FITNESS GYM</h2><div class="cards" id="productsList"></div></div></section>
 
+<section id="daily-workouts" class="section daily-workouts"><div class="wrap">
+<div class="tag">التدريبات اليومية</div><h2>برنامج اليوم</h2>
+<p class="workout-intro">تمارين منظمة مع الجهاز المطلوب، عدد الجولات والتكرارات ووقت الراحة. اختر الوزن المناسب لمستواك وحافظ على أداء الحركة بشكل صحيح.</p>
+<div class="workout-grid">
+<article class="workout-card">
+<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Treadmill-gym.jpg" alt="جهاز المشي" loading="lazy">
+<div class="workout-body"><span class="workout-day">إحماء</span><h3>المشي / الجري على جهاز المشي</h3><p><b>المطلوب:</b> 10 دقائق — سرعة متوسطة حسب لياقتك.</p><div class="workout-meta"><span>⏱ 10 د</span><span>🔥 كارديو</span></div></div></article>
+<article class="workout-card">
+<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Bench_Press.jpg" alt="جهاز بنش برس" loading="lazy">
+<div class="workout-body"><span class="workout-day">صدر</span><h3>Bench Press</h3><p><b>المطلوب:</b> 4 جولات × 8–12 تكرار — راحة 90 ثانية.</p><div class="workout-meta"><span>4 × 8–12</span><span>💪 صدر</span></div></div></article>
+<article class="workout-card">
+<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Lat_Pull_down_Machine.jpg" alt="جهاز سحب علوي" loading="lazy">
+<div class="workout-body"><span class="workout-day">ظهر</span><h3>Lat Pulldown</h3><p><b>المطلوب:</b> 4 جولات × 10–12 تكرار — راحة 60–90 ثانية.</p><div class="workout-meta"><span>4 × 10–12</span><span>🏋️ ظهر</span></div></div></article>
+<article class="workout-card">
+<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Shoulder_Press.jpg" alt="جهاز ضغط الكتف" loading="lazy">
+<div class="workout-body"><span class="workout-day">أكتاف</span><h3>Shoulder Press</h3><p><b>المطلوب:</b> 3 جولات × 8–12 تكرار — راحة 60–90 ثانية.</p><div class="workout-meta"><span>3 × 8–12</span><span>🦾 أكتاف</span></div></div></article>
+<article class="workout-card">
+<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Leg_Press.jpg" alt="جهاز ضغط الأرجل" loading="lazy">
+<div class="workout-body"><span class="workout-day">أرجل</span><h3>Leg Press</h3><p><b>المطلوب:</b> 4 جولات × 10–15 تكرار — راحة 90 ثانية.</p><div class="workout-meta"><span>4 × 10–15</span><span>🦵 أرجل</span></div></div></article>
+<article class="workout-card">
+<img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/Personal_Training_at_a_Gym_-_Cable_Crossover.JPG" alt="جهاز الكابل" loading="lazy">
+<div class="workout-body"><span class="workout-day">ذراع / صدر</span><h3>Cable Crossover</h3><p><b>المطلوب:</b> 3 جولات × 12–15 تكرار — راحة 60 ثانية.</p><div class="workout-meta"><span>3 × 12–15</span><span>💥 عزل</span></div></div></article>
+</div>
+<div class="workout-note"><b>ملاحظة:</b> هذا برنامج عام وليس وصفة تدريب شخصية. إذا كنت مبتدئًا، ابدأ بوزن خفيف واطلب من المدرب شرح وضعية الجهاز والحركة قبل زيادة الوزن.</div>
+</div></section>
+
 <section id="gallery" class="section dark"><div class="wrap"><div class="tag">المعرض</div><h2 id="galleryTitle">أجواء FITNESS GYM</h2>
 <div class="gallery" id="galleryList"></div>
 <p class="note" id="galleryNote">يمكن استبدال هذه المساحات بصور النادي الحقيقية لاحقاً.</p></div></section>
@@ -51,87 +77,104 @@
 <script src="site-public.js"></script>
 <script src="script.js"></script>
 
-<!-- Supabase products -->
+<!-- Supabase products + WhatsApp shopping -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script>
 (function () {
   "use strict";
 
+  const esc = function (value) {
+    return String(value ?? "").replace(/[&<>"']/g, function (m) {
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m];
+    });
+  };
+  const money = value => "₪" + Number(value || 0).toLocaleString("en-US");
+
+  function waNumber(value) {
+    let d = String(value || "").replace(/\D/g, "");
+    if (d.startsWith("00")) d = d.slice(2);
+    if (d.startsWith("0")) d = "970" + d.slice(1);
+    return d;
+  }
+
+  window.buyProductWhatsApp = function (name, price, stock) {
+    if (Number(stock || 0) <= 0) return alert("هذا المنتج غير متوفر حاليًا.");
+    const business = window.FITNESS_GYM_WHATSAPP || "972546700672";
+    const msg = [
+      "مرحبًا FITNESS GYM 👋",
+      "أريد شراء المنتج التالي:",
+      "",
+      "المنتج: " + name,
+      "السعر: " + money(price),
+      "الكمية: 1",
+      "",
+      "يرجى تأكيد الطلب وتزويدي بتفاصيل الدفع والاستلام."
+    ].join("\\n");
+    window.open("https://wa.me/" + waNumber(business) + "?text=" + encodeURIComponent(msg), "_blank");
+  };
+
+  async function loadBusinessWhatsApp() {
+    try {
+      if (typeof loadSiteRemote === "function") {
+        const site = await loadSiteRemote();
+        window.FITNESS_GYM_WHATSAPP = site.whatsapp || "+972 54-670-0672";
+      } else {
+        window.FITNESS_GYM_WHATSAPP = document.getElementById("whatsapp")?.textContent || "+972 54-670-0672";
+      }
+    } catch (_) {
+      window.FITNESS_GYM_WHATSAPP = "+972 54-670-0672";
+    }
+  }
+
   async function loadStoreProducts() {
     const container = document.getElementById("productsList");
     if (!container || !window.supabaseClient) return;
-
-    container.innerHTML =
-      '<p class="note">جاري تحميل المنتجات...</p>';
+    container.innerHTML = '<p class="note">جاري تحميل المنتجات...</p>';
 
     try {
+      await loadBusinessWhatsApp();
       const { data, error } = await window.supabaseClient
         .from("products")
         .select("*")
         .eq("active", true)
         .order("name", { ascending: true });
-
       if (error) throw error;
 
       if (!data || !data.length) {
-        container.innerHTML =
-          '<p class="note">لا توجد منتجات متاحة حاليًا.</p>';
+        container.innerHTML = '<p class="note">لا توجد منتجات متاحة حاليًا.</p>';
         return;
       }
 
-      const esc = function (value) {
-        return String(value ?? "").replace(/[&<>"']/g, function (m) {
-          return {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#039;"
-          }[m];
-        });
-      };
-
-      const money = function (value) {
-        return "₪" + Number(value || 0).toLocaleString("en-US");
-      };
-
       container.innerHTML = data.map(function (p) {
         const image = p.image
-          ? '<img src="' + esc(p.image) +
-            '" alt="' + esc(p.name) +
-            '" loading="lazy" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
-          : "";
+          ? '<img src="' + esc(p.image) + '" alt="' + esc(p.name) + '" loading="lazy" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
+          : '<div class="product-placeholder">🏋️</div>';
+        const stock = Number(p.stock || 0);
+        const buy = stock > 0
+          ? '<button class="btn orange product-buy" type="button" onclick="buyProductWhatsApp(\'' + esc(p.name).replace(/'/g, "\\'") + '\',' + Number(p.price || 0) + ',' + stock + ')">🛒 شراء عبر واتساب</button>'
+          : '<button class="btn product-buy" type="button" disabled>غير متوفر حاليًا</button>';
 
-        return (
-          '<article class="card product-card">' +
-            image +
-            '<div style="padding:18px;">' +
-              '<h3>' + esc(p.name) + '</h3>' +
-              (p.category
-                ? '<small>' + esc(p.category) + '</small>'
-                : '') +
-              (p.description
-                ? '<p>' + esc(p.description) + '</p>'
-                : '') +
-              '<strong>' + money(p.price) + '</strong>' +
-            '</div>' +
-          '</article>'
-        );
+        return '<article class="card product-card">' +
+          image +
+          '<div style="padding:18px;display:flex;flex-direction:column;height:calc(100% - 220px);">' +
+            '<h3>' + esc(p.name) + '</h3>' +
+            (p.category ? '<small>' + esc(p.category) + '</small>' : '') +
+            (p.description ? '<p>' + esc(p.description) + '</p>' : '') +
+            '<strong class="product-price">' + money(p.price) + '</strong>' +
+            '<small class="product-stock">' + (stock > 0 ? 'متوفر: ' + stock : 'نفد المخزون') + '</small>' +
+            buy +
+          '</div>' +
+        '</article>';
       }).join("");
-
     } catch (error) {
       console.error("Products loading error:", error);
-      container.innerHTML =
-        '<p class="note">تعذر تحميل المنتجات حاليًا.</p>';
+      container.innerHTML = '<p class="note">تعذر تحميل المنتجات حاليًا.</p>';
     }
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadStoreProducts);
-  } else {
-    loadStoreProducts();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", loadStoreProducts);
+  else loadStoreProducts();
 })();
 </script>
 </body></html>

@@ -29,3 +29,9 @@
 
 ## 5. ملاحظة
 لا أستطيع إنشاء مشروع Supabase أو وضع مفاتيح حسابك من داخل هذه المحادثة بدون بيانات/وصول إلى مشروعك. النسخة هنا مجهزة بالكامل للاتصال بمجرد وضع URL والمفتاح وتشغيل SQL.
+
+
+## WhatsApp
+- Products now have a "شراء عبر واتساب" button.
+- Admin customer list has a WhatsApp message button.
+- Admin invoices have a WhatsApp send button that sends a formatted invoice to the customer's phone.

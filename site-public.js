@@ -12,7 +12,10 @@ async function applySite(){
  const gal=document.getElementById('galleryList');
  if(gal) gal.innerHTML=(s.gallery||[]).map(x=>{
    const item=typeof x==='string'?{text:x}:x;
-   return item.image ? `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}"></div>` : `<div>${escSite(item.text||'')}</div>`;
+   if(!item.image) return `<div>${escSite(item.text||'')}</div>`;
+   const type=item.mediaType||(/^(data:video\/)|\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(item.image)?'video':(/^(data:image\/gif)|\.gif(\?|$)/i.test(item.image)?'gif':'image'));
+   if(type==='video') return `<div class="gallery-image gallery-video"><video src="${escSite(item.image)}" autoplay muted loop playsinline controls preload="metadata"></video><span class="gallery-caption">${escSite(item.text||'')}</span></div>`;
+   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}" loading="lazy"></div>`;
  }).join('');
  set('contactTag',s.contactTag);set('contactTitle',s.contactTitle);set('contactText',s.contactText);set('phone',s.phone);set('whatsapp',s.whatsapp);set('address',s.address);set('hours',s.hours);set('footerText',s.footer);
  const wa=document.getElementById('whatsappLink');if(wa)wa.href='https://wa.me/'+String(s.whatsapp||'').replace(/\D/g,'');
