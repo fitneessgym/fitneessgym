@@ -139,18 +139,22 @@
       const { data, error } = await window.supabaseClient
         .from("products")
         .select("*")
-        .eq("active", true)
         .order("name", { ascending: true });
       if (error) throw error;
 
-      if (!data || !data.length) {
+      // Keep compatibility with both product schemas used by the project:
+      // `image` (new schema) and `image_url` (existing Supabase table).
+      const products = (data || []).filter(p => p.active !== false);
+
+      if (!products.length) {
         container.innerHTML = '<p class="note">لا توجد منتجات متاحة حاليًا.</p>';
         return;
       }
 
-      container.innerHTML = data.map(function (p) {
-        const image = p.image
-          ? '<img src="' + esc(p.image) + '" alt="' + esc(p.name) + '" loading="lazy" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
+      container.innerHTML = products.map(function (p) {
+        const imageUrl = p.image || p.image_url || '';
+        const image = imageUrl
+          ? '<img src="' + esc(imageUrl) + '" alt="' + esc(p.name) + '" loading="lazy" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
           : '<div class="product-placeholder">🏋️</div>';
         const stock = Number(p.stock || 0);
         const buy = stock > 0
