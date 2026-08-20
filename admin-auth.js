@@ -1,67 +1,51 @@
-const ADMIN_SESSION_KEY='fitnessGymSupabaseAdminChecked_v1';
+const ADMIN_SESSION='fitnessGymAdminSession_v1';
 
-async function getCurrentAdmin(){
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if(!user) return null;
-  const { data, error } = await supabaseClient
-    .from('admin_users')
-    .select('user_id,email,role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if(error || !data) return null;
-  return { user, profile:data };
+/*
+  بيانات الدخول المعتمدة الافتراضية:
+  Email: admin@fitnessgym.com
+  Password: Fitness@2026
+
+  ملاحظة: لأن الموقع static على GitHub Pages، هذه حماية واجهة وليست حماية خادم.
+  للأمان الحقيقي يجب نقل التحقق إلى Backend/Auth provider.
+*/
+const ADMIN_EMAIL='admin@fitnessgym.com';
+const ADMIN_PASSWORD='Fitness@2026';
+
+function isAdminLoggedIn(){
+  return sessionStorage.getItem(ADMIN_SESSION)==='1';
 }
 
-async function requireAdmin(){
-  const admin=await getCurrentAdmin();
-  if(!admin){
-    await supabaseClient.auth.signOut();
+function protectAdminPage(){
+  if(!isAdminLoggedIn()){
     window.location.replace('admin-login.html');
-    return null;
+    return false;
   }
-  sessionStorage.setItem(ADMIN_SESSION_KEY,'1');
-  return admin;
+  return true;
 }
 
-async function logoutAdmin(){
-  sessionStorage.removeItem(ADMIN_SESSION_KEY);
-  await supabaseClient.auth.signOut();
+function logoutAdmin(){
+  sessionStorage.removeItem(ADMIN_SESSION);
   window.location.replace('admin-login.html');
 }
 
 const loginForm=document.getElementById('loginForm');
 if(loginForm){
-  (async()=>{
-    const {data:{session}}=await supabaseClient.auth.getSession();
-    if(session){
-      const admin=await getCurrentAdmin();
-      if(admin) window.location.replace('admin.html');
-      else await supabaseClient.auth.signOut();
-    }
-  })();
-
-  loginForm.addEventListener('submit',async e=>{
+  if(isAdminLoggedIn()) window.location.replace('admin.html');
+  loginForm.addEventListener('submit',e=>{
     e.preventDefault();
-    const btn=loginForm.querySelector('button[type="submit"]');
-    const error=document.getElementById('loginError');
-    error.textContent='';
-    btn.disabled=true; btn.textContent='جاري تسجيل الدخول...';
-    const email=document.getElementById('email').value.trim();
+    const email=document.getElementById('email').value.trim().toLowerCase();
     const password=document.getElementById('password').value;
-    const {error:authError}=await supabaseClient.auth.signInWithPassword({email,password});
-    if(authError){
-      error.textContent='بيانات الدخول غير صحيحة أو الحساب غير مصرح له.';
-      btn.disabled=false; btn.textContent='تسجيل الدخول';
-      return;
+    const error=document.getElementById('loginError');
+    if(email===ADMIN_EMAIL.toLowerCase() && password===ADMIN_PASSWORD){
+      sessionStorage.setItem(ADMIN_SESSION,'1');
+      window.location.replace('admin.html');
+    }else{
+      error.textContent='البريد الإلكتروني أو كلمة المرور غير صحيحة.';
     }
-    const admin=await getCurrentAdmin();
-    if(!admin){
-      await supabaseClient.auth.signOut();
-      error.textContent='تم تسجيل الدخول، لكن هذا الحساب ليس ضمن مديري النادي.';
-      btn.disabled=false; btn.textContent='تسجيل الدخول';
-      return;
-    }
-    sessionStorage.setItem(ADMIN_SESSION_KEY,'1');
-    window.location.replace('admin.html');
   });
+}
+
+if(document.body?.classList.contains('admin-page') && document.getElementById('statCustomers')){
+  protectAdminPage();
+  document.getElementById('logoutBtn')?.addEventListener('click',logoutAdmin);
 }

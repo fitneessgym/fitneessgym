@@ -1,10 +1,7 @@
-let site;
+if(!isAdminLoggedIn()){window.location.replace('admin-login.html');throw new Error('Unauthorized');}
+let site=loadSite();
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-async function bootEditor(){
-  const admin=await requireAdmin(); if(!admin)return;
-  site=await loadSiteRemote(); renderAll();
-}
 function bindSimple(){['brand','heroTag','heroTitle','heroAccent','heroText','aboutTag','aboutTitle','aboutText','galleryTitle','galleryNote','contactTag','contactTitle','contactText','phone','whatsapp','address','hours','footer'].forEach(k=>{if($(k))$(k).value=site[k]??'';});}
 function renderStats(){ $('statsList').innerHTML=site.stats.map((x,i)=>`<div class="repeat-item"><div class="field-grid"><div class="field"><label>القيمة</label><input data-stat-v="${i}" value="${esc(x[0])}"></div><div class="field"><label>الوصف</label><input data-stat-l="${i}" value="${esc(x[1])}"></div></div><button class="danger-btn" onclick="removeStat(${i})">حذف</button></div>`).join(''); }
 function renderFeatures(){ $('featuresList').innerHTML=site.features.map((x,i)=>`<div class="repeat-item"><input data-feature="${i}" value="${esc(x)}"><button class="danger-btn" onclick="removeFeature(${i})">حذف</button></div>`).join(''); }
@@ -20,7 +17,7 @@ function collect(){
  document.querySelectorAll('[data-pt]').forEach(e=>site.plans[+e.dataset.pt].title=e.value.trim());document.querySelectorAll('[data-pp]').forEach(e=>site.plans[+e.dataset.pp].price=e.value.trim());document.querySelectorAll('[data-pper]').forEach(e=>site.plans[+e.dataset.pper].period=e.value.trim());document.querySelectorAll('[data-ph]').forEach(e=>site.plans[+e.dataset.ph].hot=e.value==='true');document.querySelectorAll('[data-pf]').forEach(e=>site.plans[+e.dataset.pf].features=e.value.split('\n').map(x=>x.trim()).filter(Boolean));
  document.querySelectorAll('[data-gallery]').forEach(e=>site.gallery[+e.dataset.gallery]=e.value.trim());
 }
-$('saveBtn').onclick=async()=>{collect();const b=$('saveBtn');b.disabled=true;b.textContent='جاري الحفظ...';try{await saveSiteRemote(site);$('saveMsg').textContent='✓ تم حفظ جميع التعديلات في قاعدة البيانات، وستظهر لجميع الزوار.';}catch(e){console.error(e);$('saveMsg').textContent='تعذر الحفظ في قاعدة البيانات. تأكد من إعداد Supabase وRLS.';}finally{b.disabled=false;b.textContent='حفظ التغييرات';setTimeout(()=>$('saveMsg').textContent='',4000);}};
+$('saveBtn').onclick=()=>{collect();saveSite(site);$('saveMsg').textContent='✓ تم حفظ جميع التعديلات بنجاح.';setTimeout(()=>$('saveMsg').textContent='',3000);};
 $('previewBtn').onclick=()=>window.open('index.html','_blank');
 $('logoutBtn').onclick=logoutAdmin;
 document.querySelectorAll('[data-editor]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-editor]').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.editor-section').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('editor-'+b.dataset.editor).classList.add('active');});
@@ -29,4 +26,4 @@ window.removeStat=i=>{collect();site.stats.splice(i,1);renderStats();};window.re
 $('exportSite').onclick=()=>{collect();const blob=new Blob([JSON.stringify(site,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='fitness-gym-site-settings.json';a.click();URL.revokeObjectURL(u);$('backupMsg').textContent='✓ تم تصدير الإعدادات.';};
 $('importSite').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{site={...cloneDefault(),...JSON.parse(r.result)};renderAll();$('backupMsg').textContent='✓ تم استيراد الإعدادات. اضغط حفظ التغييرات.';}catch(_){$('backupMsg').textContent='تعذر قراءة الملف.';}};r.readAsText(f);};
 $('resetSite').onclick=()=>{if(confirm('إرجاع جميع إعدادات الموقع للوضع الافتراضي؟')){site=cloneDefault();renderAll();$('backupMsg').textContent='تمت استعادة الإعدادات الافتراضية. اضغط حفظ التغييرات.';}};
-bootEditor();
+renderAll();

@@ -21,17 +21,5 @@ const DEFAULT_SITE={
   footer:'القوة • الانضباط • الاستمرارية'
 };
 function cloneDefault(){return JSON.parse(JSON.stringify(DEFAULT_SITE));}
-function loadSiteLocal(){try{return {...cloneDefault(),...(JSON.parse(localStorage.getItem(SITE_KEY)||'{}'))}}catch(e){return cloneDefault()}}
-function saveSiteLocal(site){localStorage.setItem(SITE_KEY,JSON.stringify(site));}
-async function loadSiteRemote(){
-  try{
-    const {data,error}=await supabaseClient.from('site_settings').select('data').eq('id',1).maybeSingle();
-    if(error || !data?.data) return loadSiteLocal();
-    return {...cloneDefault(),...data.data};
-  }catch(e){ return loadSiteLocal(); }
-}
-async function saveSiteRemote(site){
-  const {error}=await supabaseClient.from('site_settings').upsert({id:1,data:site,updated_at:new Date().toISOString()},{onConflict:'id'});
-  if(error) throw error;
-  saveSiteLocal(site);
-}
+function loadSite(){try{return {...cloneDefault(),...(JSON.parse(localStorage.getItem(SITE_KEY)||'{}'))}}catch(e){return cloneDefault()}}
+function saveSite(site){localStorage.setItem(SITE_KEY,JSON.stringify(site));}
