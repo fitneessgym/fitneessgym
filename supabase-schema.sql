@@ -298,6 +298,9 @@ alter table public.customers add column if not exists first_name text;
 alter table public.customers add column if not exists second_name text;
 alter table public.customers add column if not exists last_name text;
 
+-- Compatibility migration for existing installations: add created_by if the table already exists.
+alter table if exists public.workout_logs add column if not exists created_by uuid references auth.users(id) on delete set null;
+
 create table if not exists public.workout_logs (
   id uuid primary key default gen_random_uuid(),
   customer_id text not null references public.customers(id) on delete cascade,

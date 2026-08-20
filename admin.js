@@ -187,7 +187,7 @@
     if(!getCustomer(customerId))return alert('اختر اللاعب.');
     if(!title)return alert('اكتب اسم التمرين أولًا.');
     const sets=Math.max(0,Number($('logSets').value||0)), weight=Math.max(0,Number($('logWeight').value||0));
-    const payload={customer_id:customerId,workout_title:title,workout_day:day,workout_date:$('logDate').value||today(),sets_completed:sets,reps:$('logReps').value.trim(),weight,duration:$('logDuration').value.trim(),notes:$('logNotes').value.trim(),created_by:(await supabase.auth.getUser()).data.user?.id||null};
+    const payload={customer_id:customerId,workout_title:title,workout_day:day,workout_date:$('logDate').value||today(),sets_completed:sets,reps:$('logReps').value.trim(),weight,duration:$('logDuration').value.trim(),notes:$('logNotes').value.trim()};
     const {error}=await supabase.from('workout_logs').insert(payload);
     if(error)return alert('تعذر حفظ تمرين اللاعب:\n\n'+(error.message||error.details||''));
     e.target.reset();
