@@ -3,11 +3,16 @@ const ADMIN_EMAIL='shakarnah2004@gmail.com';
 
 function isAdminLoggedIn(){return sessionStorage.getItem(ADMIN_SESSION)==='1';}
 
+async function verifyAdminSession(){
+  if(!window.supabaseClient) return false;
+  const {data,error}=await window.supabaseClient.auth.getSession();
+  if(error || !data?.session?.user) return false;
+  const {data:admin,error:adminError}=await window.supabaseClient.from('admin_users').select('user_id,email,role').eq('user_id',data.session.user.id).maybeSingle();
+  return !adminError && !!admin;
+}
+
 function protectAdminPage(){
-  if(!isAdminLoggedIn()){
-    window.location.replace('admin-login.html');
-    return false;
-  }
+  if(!isAdminLoggedIn()){ window.location.replace('admin-login.html'); return false; }
   return true;
 }
 
@@ -19,12 +24,10 @@ async function logoutAdmin(){
 
 async function initAdminAuth(){
   if(!window.supabaseClient) return;
-  const {data}=await window.supabaseClient.auth.getSession();
-  if(!data?.session){
+  const ok=await verifyAdminSession();
+  if(!ok){
     sessionStorage.removeItem(ADMIN_SESSION);
-    if(document.body?.classList.contains('admin-page') && !document.getElementById('loginForm')){
-      window.location.replace('admin-login.html');
-    }
+    if(document.body?.classList.contains('admin-page') && !document.getElementById('loginForm')) window.location.replace('admin-login.html');
   }
 }
 
@@ -52,6 +55,8 @@ if(loginForm){
       const {data,error:authError}=await window.supabaseClient.auth.signInWithPassword({email,password});
       if(authError) throw authError;
       if(!data?.session) throw new Error('تعذر إنشاء جلسة الدخول.');
+      const {data:admin,error:adminError}=await window.supabaseClient.from('admin_users').select('user_id,role').eq('user_id',data.session.user.id).maybeSingle();
+      if(adminError || !admin) { await window.supabaseClient.auth.signOut(); throw new Error('هذا الحساب ليس مضافًا إلى طاقم إدارة FITNESS GYM.'); }
       sessionStorage.setItem(ADMIN_SESSION,'1');
       window.location.replace('admin.html');
     }catch(err){

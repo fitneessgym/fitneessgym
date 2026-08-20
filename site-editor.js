@@ -70,6 +70,17 @@ function renderGallery(){
    const i=+input.dataset.galleryUrl; const value=input.value.trim(); site.gallery[i]={...galleryItem(site.gallery[i]),image:value,mediaType:inferMediaType(value)}; renderGalleryPreviewOnly(i);
  }));
 }
+function compressImageBlob(file,maxSide=1400,quality=.82){
+ return new Promise((resolve,reject)=>{
+   const reader=new FileReader(); reader.onerror=()=>reject(new Error('تعذر قراءة الصورة'));
+   reader.onload=()=>{const img=new Image(); img.onerror=()=>reject(new Error('ملف الصورة غير صالح')); img.onload=()=>{
+     const scale=Math.min(1,maxSide/Math.max(img.width,img.height));
+     const canvas=document.createElement('canvas'); canvas.width=Math.max(1,Math.round(img.width*scale)); canvas.height=Math.max(1,Math.round(img.height*scale));
+     canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+     canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('تعذر ضغط الصورة')),'image/jpeg',quality);
+   }; img.src=reader.result;}; reader.readAsDataURL(file);
+ });
+}
 function compressImage(file,maxSide=1400,quality=.82){
  return new Promise((resolve,reject)=>{
    const reader=new FileReader();
@@ -100,10 +111,22 @@ async function handleGalleryFile(input){
    const isVideo=file.type.startsWith('video/'); const isGif=file.type==='image/gif';
    const max=isVideo?10*1024*1024:12*1024*1024;
    if(file.size>max){alert(isVideo?'حجم الفيديو كبير جدًا. اختر فيديو قصيرًا أقل من 10MB.':'حجم الصورة كبير جدًا. اختر صورة أقل من 12MB.');input.value='';return;}
-   let data;
-   if(isVideo||isGif){ data=await readFileData(file); } else { data=await compressImage(file); }
    collect();
-   site.gallery[i]={...galleryItem(site.gallery[i]),image:data,mediaType:isVideo?'video':(isGif?'gif':'image')};
+   let data = '';
+   let mediaType = isVideo ? 'video' : (isGif ? 'gif' : 'image');
+   if(window.supabaseClient){
+     const ext=(file.name.split('.').pop()|| (isVideo?'mp4':isGif?'gif':'jpg')).toLowerCase().replace(/[^a-z0-9]/g,'') || (isVideo?'mp4':isGif?'gif':'jpg');
+     const path=`gallery/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+     let uploadBlob=file;
+     let contentType=file.type || (isVideo?'video/mp4':isGif?'image/gif':'image/jpeg');
+     if(!isVideo && !isGif){ uploadBlob=await compressImageBlob(file); contentType='image/jpeg'; }
+     const {error}=await window.supabaseClient.storage.from('site-media').upload(path,uploadBlob,{upsert:false,contentType});
+     if(error) throw new Error('تعذر رفع ملف المعرض: '+error.message);
+     data=window.supabaseClient.storage.from('site-media').getPublicUrl(path).data.publicUrl;
+   } else {
+     data=isVideo||isGif ? await readFileData(file) : await compressImage(file);
+   }
+   site.gallery[i]={...galleryItem(site.gallery[i]),image:data,mediaType};
    renderGallery();
  }catch(e){alert(e.message||'تعذر رفع الملف');}
 }

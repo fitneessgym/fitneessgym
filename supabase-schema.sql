@@ -145,7 +145,7 @@ begin
   if id_type = 'uuid' then
     execute 'alter table public.products alter column id set default gen_random_uuid()';
   elsif id_type = 'text' then
-    execute $$alter table public.products alter column id set default ('PROD-' || replace(gen_random_uuid()::text,'-',''))$$;
+    execute 'alter table public.products alter column id set default (''PROD-'' || replace(gen_random_uuid()::text,''-'',''''))';
   end if;
 end $$;
 
@@ -204,6 +204,34 @@ where lower(email)=lower('shakarnah2004@gmail.com')
 on conflict (user_id) do update set email=excluded.email, role='admin';
 
 
+
+-- Player nutrition profiles (safe separate table for per-player calorie tracking)
+create table if not exists public.customer_nutrition_profiles (
+  id uuid primary key default gen_random_uuid(),
+  customer_id text not null unique references public.customers(id) on delete cascade,
+  sex text not null default 'male',
+  age integer,
+  weight numeric(6,2),
+  height numeric(6,2),
+  body_type text not null default 'mesomorph',
+  goal text not null default 'build',
+  activity_level numeric(4,3) not null default 1.55,
+  bmr numeric(8,2),
+  tdee numeric(8,2),
+  target_calories numeric(8,2),
+  protein_g numeric(8,2),
+  carbs_g numeric(8,2),
+  fats_g numeric(8,2),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.customer_nutrition_profiles enable row level security;
+drop policy if exists "staff can manage nutrition profiles" on public.customer_nutrition_profiles;
+create policy "staff can manage nutrition profiles"
+on public.customer_nutrition_profiles for all to authenticated
+using (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))
+with check (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())));
+grant select, insert, update, delete on public.customer_nutrition_profiles to authenticated;
 
 -- Player workout tracking
 alter table public.customers add column if not exists first_name text;

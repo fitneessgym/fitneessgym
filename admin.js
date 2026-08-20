@@ -17,24 +17,24 @@
   const waLink=(phone,text)=>'https://wa.me/'+waNumber(phone)+'?text='+encodeURIComponent(text);
   const invoiceMessage=(i,c)=>['فاتورة FITNESS GYM 🧾','', 'رقم الفاتورة: '+i.id,'العميل: '+(c?.name||'—'),'النوع: '+(i.type||'—'),'المبلغ: '+money(i.amount),'التاريخ: '+(i.date||'—'), i.note ? 'الوصف: '+i.note : '', '', 'شكرًا لتعاملكم مع FITNESS GYM 💪'].filter(Boolean).join('\n');
   const customerMessage=c=>['مرحبًا '+(c?.name||'')+' 👋','معك FITNESS GYM.','كيف يمكننا مساعدتك اليوم؟ 💪'].join('\n');
-  let customers=[],invoices=[],payments=[],workoutLogs=[],workouts=[];
+  let customers=[],invoices=[],payments=[],workoutLogs=[],workouts=[],nutritionProfiles=[];
 
   const getCustomer=id=>customers.find(c=>String(c.id)===String(id));
   const debt=c=>Math.max(0,Number(c.total||0)-Number(c.paid||0));
 
   async function loadData(){
-    const [c,i,p,w,st]=await Promise.all([
+    const results=await Promise.all([
       supabase.from('customers').select('*').order('created_at',{ascending:false}),
       supabase.from('invoices').select('*').order('date',{ascending:false}),
       supabase.from('payments').select('*').order('date',{ascending:false}),
       supabase.from('workout_logs').select('*').order('workout_date',{ascending:false}).order('created_at',{ascending:false}),
-      supabase.from('site_settings').select('data').eq('id',1).maybeSingle()
+      supabase.from('site_settings').select('data').eq('id',1).maybeSingle(),
+      supabase.from('customer_nutrition_profiles').select('*').order('updated_at',{ascending:false})
     ]);
-    if(c.error) throw c.error;
-    if(i.error) throw i.error;
-    if(p.error) throw p.error;
-    if(w.error) throw w.error;
-    customers=c.data||[]; invoices=i.data||[]; payments=p.data||[]; workoutLogs=w.data||[];
+    const [c,i,p,w,st,n]=results;
+    if(c.error) throw c.error; if(i.error) throw i.error; if(p.error) throw p.error; if(w.error) throw w.error;
+    if(n.error && n.error.code!=='42P01') throw n.error;
+    customers=c.data||[]; invoices=i.data||[]; payments=p.data||[]; workoutLogs=w.data||[]; nutritionProfiles=n.data||[];
     workouts=Array.isArray(st?.data?.workouts)?st.data.workouts:[];
   }
 
@@ -79,7 +79,7 @@
     if($('statInvoices'))$('statInvoices').textContent=money(inv);
     if($('statDebts'))$('statDebts').textContent=money(d);
     if($('statPaid'))$('statPaid').textContent=money(p);
-    renderCustomers();renderDebts();renderInvoices();renderWorkoutLogs();fillSelects();fillWorkoutSelect();
+    renderCustomers();renderDebts();renderInvoices();renderWorkoutLogs();renderNutrition();fillSelects();fillWorkoutSelect();fillNutritionSelects();
     window.renderProducts?.();
   }
 
@@ -100,6 +100,36 @@
   }
   window.openPlayerWorkoutLog=id=>{document.querySelector('[data-tab="workouts"]')?.click();if($('logFilterCustomer')){$('logFilterCustomer').value=id;renderWorkoutLogs();}if($('logCustomer'))$('logCustomer').value=id;};
   window.deleteWorkoutLog=async id=>{if(!confirm('حذف سجل التمرين؟'))return;const {error}=await supabase.from('workout_logs').delete().eq('id',id);if(error)return alert('تعذر حذف السجل:\n\n'+(error.message||error.details||''));await refresh();};
+
+  function fillNutritionSelects(){
+    const opts='<option value="">اختر اللاعب</option>'+customers.map(c=>`<option value="${esc(c.id)}">${esc(fullName(c))} — ${esc(c.phone)}</option>`).join('');
+    if($('nutritionCustomer')) $('nutritionCustomer').innerHTML=opts;
+    if($('nutritionFilterCustomer')) $('nutritionFilterCustomer').innerHTML='<option value="">كل اللاعبين</option>'+customers.map(c=>`<option value="${esc(c.id)}">${esc(fullName(c))}</option>`).join('');
+  }
+  function goalLabel(g){return ({build:'بناء عضل',cardio:'كارديو / لياقة',cut:'تنشيف / خسارة دهون'})[g]||g||'—';}
+  function renderNutrition(){
+    const body=$('nutritionBody'); if(!body)return;
+    const filter=$('nutritionFilterCustomer')?.value||'';
+    const rows=nutritionProfiles.filter(n=>!filter||String(n.customer_id)===String(filter));
+    body.innerHTML=rows.map(n=>{const c=getCustomer(n.customer_id);return `<tr><td><b>${esc(fullName(c))}</b></td><td>${Math.round(n.bmr||0)}</td><td>${Math.round(n.tdee||0)}</td><td><b>${Math.round(n.target_calories||0)}</b></td><td>${esc(goalLabel(n.goal))}</td><td>${Math.round(n.protein_g||0)}غ</td><td>${Math.round(n.carbs_g||0)}غ</td><td>${Math.round(n.fats_g||0)}غ</td></tr>`}).join('')||'<tr><td colspan="8" class="empty">لا توجد ملفات تغذية بعد.</td></tr>';
+  }
+  $('nutritionCustomer')?.addEventListener('change',()=>{
+    const p=nutritionProfiles.find(x=>String(x.customer_id)===String($('nutritionCustomer').value)); if(!p)return;
+    $('nutritionSex').value=p.sex||'male'; $('nutritionAge').value=p.age||''; $('nutritionWeight').value=p.weight||''; $('nutritionHeight').value=p.height||''; $('nutritionActivity').value=p.activity_level||1.55; $('nutritionBody').value=p.body_type||'mesomorph'; $('nutritionGoal').value=p.goal||'build';
+  });
+  $('nutritionFilterCustomer')?.addEventListener('change',renderNutrition);
+  $('nutritionForm')?.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const customerId=$('nutritionCustomer').value, sex=$('nutritionSex').value, age=Number($('nutritionAge').value), weight=Number($('nutritionWeight').value), height=Number($('nutritionHeight').value), activity=Number($('nutritionActivity').value), bodyType=$('nutritionBody').value, goal=$('nutritionGoal').value;
+    if(!getCustomer(customerId)||!age||!weight||!height)return alert('أدخل اللاعب والعمر والوزن والطول.');
+    const bmr=10*weight+6.25*height-5*age+(sex==='male'?5:-161); const tdee=bmr*activity; let target=tdee;
+    if(goal==='build') target=tdee+250; else if(goal==='cut') target=tdee*0.8; else if(goal==='cardio') target=tdee*0.95;
+    const protein=Math.max(1.6*weight,0), fats=Math.max(0.7*weight,0), carbs=Math.max((target-protein*4-fats*9)/4,0);
+    const payload={customer_id:customerId,sex,age,weight,height,body_type:bodyType,goal,activity_level:activity,bmr,tdee,target_calories:target,protein_g:protein,carbs_g:carbs,fats_g:fats,updated_at:new Date().toISOString()};
+    const {error}=await supabase.from('customer_nutrition_profiles').upsert(payload,{onConflict:'customer_id'});
+    if(error)return alert('تعذر حفظ ملف السعرات:\n\n'+(error.message||error.details||''));
+    await refresh(); $('nutritionCustomer').value=customerId; alert('تم حساب وحفظ السعرات للاعب.');
+  });
 
   async function refresh(){try{await loadData();render();}catch(e){console.error(e);alert('تعذر تحميل بيانات الإدارة:\\n\\n'+(e.message||e.details||'خطأ غير معروف'));}}
 

@@ -88,6 +88,27 @@
     alert('تم حذف المنتج.');
   };
 
+  function compressProductImage(file, maxSide=1400, quality=.82) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('تعذر قراءة صورة المنتج.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('ملف الصورة غير صالح.'));
+        img.onload = () => {
+          const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('تعذر ضغط صورة المنتج.')), 'image/jpeg', quality);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   const form = p$('productForm');
   if (form) form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -104,15 +125,21 @@
     let image = p$('productImage').value.trim();
 
     if (file) {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        image = reader.result;
-        await save(image);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      await save(image);
+      try {
+        if (!file.type.startsWith('image/')) throw new Error('اختر ملف صورة فقط.');
+        if (file.size > 12 * 1024 * 1024) throw new Error('حجم صورة المنتج يجب أن يكون أقل من 12MB.');
+        const blob = await compressProductImage(file);
+        const ext = "jpg";
+        const path = `products/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from('site-media').upload(path, blob, { upsert:false, contentType:'image/jpeg' });
+        if (uploadError) throw new Error('تعذر رفع صورة المنتج: ' + uploadError.message);
+        image = supabase.storage.from('site-media').getPublicUrl(path).data.publicUrl;
+      } catch (uploadError) {
+        return alert(uploadError.message || 'تعذر رفع صورة المنتج.');
+      }
     }
+
+    await save(image);
 
     async function save(imageValue) {
       // IMPORTANT: the database column `id` may be UUID.
