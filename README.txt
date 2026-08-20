@@ -12,3 +12,7 @@ Important:
 - This version uses Supabase instead of localStorage for customers, invoices, payments and products.
 - The existing database tables/data are not deleted by these files.
 - The homepage product section still requires the site's index.html/product rendering code to be updated separately if it is not already present.
+
+
+FIX: Product saving is UUID-safe. admin-store.js no longer sends PROD-* into products.id.
+Run supabase-schema.sql once in Supabase SQL Editor to add missing image/default UUID compatibility.

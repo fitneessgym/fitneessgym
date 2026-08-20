@@ -126,6 +126,42 @@ create table if not exists public.products (
   updated_at timestamptz not null default now()
 );
 
+-- Compatibility / migration for existing databases
+-- The existing project may already have `products.id` as UUID.
+-- These statements safely add missing fields and ensure new rows get an id.
+alter table if exists public.products
+  add column if not exists image text;
+
+do $$
+declare
+  id_type text;
+begin
+  select data_type into id_type
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name = 'products'
+    and column_name = 'id';
+
+  if id_type = 'uuid' then
+    execute 'alter table public.products alter column id set default gen_random_uuid()';
+  elsif id_type = 'text' then
+    execute $$alter table public.products alter column id set default ('PROD-' || replace(gen_random_uuid()::text,'-',''))$$;
+  end if;
+end $$;
+
+-- Optional human-readable product code; it is NOT the database primary key.
+alter table if exists public.products
+  add column if not exists product_code text;
+
+create unique index if not exists products_product_code_unique
+  on public.products(product_code)
+  where product_code is not null;
+
+-- Give existing rows a readable code if they do not have one.
+update public.products
+set product_code = 'PROD-' || upper(substr(replace(gen_random_uuid()::text,'-',''), 1, 10))
+where product_code is null;
+
 -- Customer payments
 create table if not exists public.payments (
   id text primary key default ('PAY-' || replace(gen_random_uuid()::text,'-','')),

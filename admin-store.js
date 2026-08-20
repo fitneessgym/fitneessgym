@@ -115,8 +115,10 @@
     }
 
     async function save(imageValue) {
+      // IMPORTANT: the database column `id` may be UUID.
+      // Never send a human-readable PROD-... value into a UUID column.
+      // Supabase generates the UUID automatically when the DB default is configured.
       const payload = {
-        id: id || ('PROD-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8)),
         name,
         description: p$('productDescription').value.trim(),
         price,
