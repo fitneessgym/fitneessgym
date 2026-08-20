@@ -13,6 +13,11 @@
   const pid=()=>`PAY-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
   const fullName=c=>[c?.first_name,c?.second_name,c?.last_name].filter(Boolean).join(' ') || c?.name || '—';
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  async function sha256Hex(value){
+    const data=new TextEncoder().encode(String(value||''));
+    const hash=await crypto.subtle.digest('SHA-256',data);
+    return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
   const waNumber=v=>{let d=String(v||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d='970'+d.slice(1);return d;};
   const waLink=(phone,text)=>'https://wa.me/'+waNumber(phone)+'?text='+encodeURIComponent(text);
   const invoiceMessage=(i,c)=>['فاتورة FITNESS GYM 🧾','', 'رقم الفاتورة: '+i.id,'العميل: '+(c?.name||'—'),'النوع: '+(i.type||'—'),'المبلغ: '+money(i.amount),'التاريخ: '+(i.date||'—'), i.note ? 'الوصف: '+i.note : '', '', 'شكرًا لتعاملكم مع FITNESS GYM 💪'].filter(Boolean).join('\n');
@@ -50,7 +55,7 @@
       <tr><td><b>${esc(fullName(c))}</b><small>${esc(c.phone)}</small></td>
       <td>${esc(c.plan||'')}</td><td>${money(c.total)}</td><td>${money(c.paid)}</td><td>${money(debt(c))}</td>
       <td>${esc(c.start||'—')}<br>${esc(c.end||'—')}</td>
-      <td><button class="mini" type="button" onclick="openPlayerWorkoutLog('${esc(c.id)}')">تمارينه</button> <button class="mini" type="button" onclick="messageCustomerWhatsApp('${esc(c.id)}')">واتساب</button> <button class="mini danger" type="button" onclick="deleteCustomer('${esc(c.id)}')">حذف</button></td></tr>`).join('')
+      <td><button class="mini" type="button" onclick="openPlayerWorkoutLog('${esc(c.id)}')">تمارينه</button> <button class="mini" type="button" onclick="setPlayerPin('${esc(c.id)}')">PIN</button> <button class="mini" type="button" onclick="messageCustomerWhatsApp('${esc(c.id)}')">واتساب</button> <button class="mini danger" type="button" onclick="deleteCustomer('${esc(c.id)}')">حذف</button></td></tr>`).join('')
       ||'<tr><td colspan="7" class="empty">لا يوجد عملاء بعد</td></tr>';
   }
 
@@ -99,6 +104,17 @@
     body.innerHTML=rows.map(l=>{const c=getCustomer(l.customer_id);return `<tr><td><b>${esc(fullName(c))}</b></td><td>${esc(l.workout_title)}<small>${esc(l.workout_day||'')}</small></td><td>${esc(l.workout_date||'')}</td><td>${esc(l.sets_completed)}</td><td>${esc(l.reps||'—')}</td><td>${Number(l.weight||0)?esc(l.weight)+' كغ':'—'}</td><td>${esc(l.duration||'—')}</td><td>${esc(l.notes||'—')}</td><td><button class="mini danger" type="button" onclick="deleteWorkoutLog('${esc(l.id)}')">حذف</button></td></tr>`}).join('')||'<tr><td colspan="9" class="empty">لا يوجد سجل تمارين بعد.</td></tr>';
   }
   window.openPlayerWorkoutLog=id=>{document.querySelector('[data-tab="workouts"]')?.click();if($('logFilterCustomer')){$('logFilterCustomer').value=id;renderWorkoutLogs();}if($('logCustomer'))$('logCustomer').value=id;};
+  window.setPlayerPin=async id=>{
+    const c=getCustomer(id); if(!c)return;
+    const pin=prompt('أدخل PIN جديد للاعب '+fullName(c)+' (4 إلى 12 رقمًا):','');
+    if(pin===null)return;
+    if(!/^\d{4,12}$/.test(pin.trim()))return alert('الـPIN يجب أن يكون من 4 إلى 12 رقمًا.');
+    const hash=await sha256Hex(pin.trim());
+    const {error}=await supabase.from('customers').update({player_pin_hash:hash}).eq('id',id);
+    if(error)return alert('تعذر حفظ PIN اللاعب:\n\n'+(error.message||error.details||''));
+    alert('تم تحديث PIN اللاعب. أعطه للاعب ليستخدمه مع رقم هاتفه.');
+    await refresh();
+  };
   window.deleteWorkoutLog=async id=>{if(!confirm('حذف سجل التمرين؟'))return;const {error}=await supabase.from('workout_logs').delete().eq('id',id);if(error)return alert('تعذر حذف السجل:\n\n'+(error.message||error.details||''));await refresh();};
 
   function fillNutritionSelects(){
@@ -141,7 +157,7 @@
     if(!first||!second||!last||!phone)return alert('أدخل الاسم الأول والثاني والأخير ورقم الهاتف.');
     if(paid>total)return alert('المبلغ المدفوع لا يمكن أن يكون أكبر من الإجمالي.');
     if(customers.some(c=>fullName(c).trim().toLocaleLowerCase()===name.toLocaleLowerCase()))return alert('يوجد لاعب آخر بنفس الاسم.');
-    const payload={id:cid(),name,first_name:first,second_name:second,last_name:last,phone,plan:$('customerPlan').value,total,paid,start:$('customerStart').value||null,end:$('customerEnd').value||null};
+    const pin=$('customerPin').value.trim(); if(!/^\d{4,12}$/.test(pin))return alert('PIN اللاعب يجب أن يكون من 4 إلى 12 رقمًا.'); const player_pin_hash=await sha256Hex(pin); const payload={id:cid(),name,first_name:first,second_name:second,last_name:last,phone,plan:$('customerPlan').value,total,paid,start:$('customerStart').value||null,end:$('customerEnd').value||null,player_pin_hash};
     const {error}=await supabase.from('customers').insert(payload);
     if(error)return alert('تعذر حفظ العميل:\\n\\n'+(error.message||error.details||''));
     e.target.reset();await refresh();alert('تم حفظ العميل بنجاح.');

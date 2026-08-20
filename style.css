@@ -124,3 +124,25 @@ td small{display:block;color:var(--muted)}
 .result-tip,.calorie-disclaimer{color:var(--muted);font-size:13px;line-height:1.8}.calorie-disclaimer{margin-top:16px}
 @media(max-width:850px){.calorie-layout{grid-template-columns:1fr}}
 @media(max-width:520px){.field-grid-public{grid-template-columns:1fr}.field-grid-public label.full{grid-column:auto}.result-main strong{font-size:30px}}
+
+
+/* بوابة اللاعب */
+.player-portal{background:linear-gradient(135deg,#090c0d,#1a0e08);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.player-intro{color:var(--muted);max-width:820px;font-size:17px}
+.player-login-card,.player-dashboard,.player-panel{background:#0d1011;border:1px solid var(--line);border-radius:16px}
+.player-login-card{max-width:560px;padding:24px;margin-top:25px}
+.player-login-form{background:transparent;border:0;padding:0;display:grid;gap:13px}
+.player-login-form label{display:grid;gap:6px;font-weight:700}
+.player-login-msg{min-height:25px;color:#ff9a78;margin:0;font-size:14px}
+.player-login-help{color:var(--muted);font-size:13px;margin-top:8px}
+.player-dashboard{padding:22px;margin-top:25px}
+.player-head{display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:1px solid var(--line);padding-bottom:18px}
+.player-head h3{font-size:28px;margin:0 0 3px}.player-welcome{color:var(--orange);font-weight:800}
+.player-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+.player-summary>div,.player-nutrition-grid>div{background:#101415;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.player-summary b{display:block;color:var(--orange);font-size:22px}.player-summary small,.player-nutrition-grid small{display:block;color:var(--muted)}
+.player-workout-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.player-panel{padding:18px}.player-panel h3{margin:0 0 4px}.player-workout-list{display:grid;gap:10px;margin-top:14px}
+.player-workout-card{background:#101415;border:1px solid var(--line);border-radius:12px;padding:14px}.player-workout-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.player-workout-date{color:var(--muted);font-size:13px;margin:7px 0}.player-workout-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#ddd}.player-workout-meta span{border:1px solid var(--line);border-radius:999px;padding:4px 8px}.player-workout-notes{color:var(--muted);font-size:13px;margin:9px 0 0}.player-status{font-size:11px;border-radius:999px;padding:3px 8px;font-weight:800}.player-status.upcoming{background:#3b210f;color:#ff9a78}.player-status.done{background:#15241c;color:#8bd7a8}.player-empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}.player-nutrition{margin-top:18px}.player-nutrition-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px}.player-nutrition-grid b{display:block;color:var(--orange);font-size:18px}
+@media(max-width:850px){.player-workout-columns{grid-template-columns:1fr}.player-nutrition-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.player-head{align-items:stretch;flex-direction:column}.player-head .btn{width:100%}.player-summary{grid-template-columns:1fr}.player-nutrition-grid{grid-template-columns:1fr 1fr}}

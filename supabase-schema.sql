@@ -299,3 +299,50 @@ using (
   bucket_id = 'site-media'
   and exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))
 );
+
+
+-- Player portal login (phone + PIN) and private dashboard RPC
+create extension if not exists pgcrypto;
+alter table public.customers add column if not exists player_pin_hash text;
+
+create or replace function public.player_login(p_phone text, p_pin text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  c public.customers%rowtype;
+  normalized_phone text;
+begin
+  normalized_phone := regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g');
+  select * into c
+  from public.customers
+  where regexp_replace(coalesce(phone,''), '[^0-9]', '', 'g') = normalized_phone
+    and player_pin_hash = encode(digest(trim(coalesce(p_pin,'')), 'sha256'), 'hex')
+  order by created_at desc
+  limit 1;
+
+  if not found then
+    raise exception 'INVALID_PLAYER_LOGIN';
+  end if;
+
+  return jsonb_build_object(
+    'customer', to_jsonb(c) - 'player_pin_hash',
+    'workouts', coalesce((
+      select jsonb_agg(to_jsonb(w) order by w.workout_date asc, w.created_at asc)
+      from public.workout_logs w
+      where w.customer_id = c.id
+    ), '[]'::jsonb),
+    'nutrition', (
+      select to_jsonb(n)
+      from public.customer_nutrition_profiles n
+      where n.customer_id = c.id
+      limit 1
+    )
+  );
+end;
+$$;
+
+revoke all on function public.player_login(text,text) from public;
+grant execute on function public.player_login(text,text) to anon, authenticated;

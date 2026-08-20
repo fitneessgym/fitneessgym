@@ -17,7 +17,6 @@
   }
 
   let products = [];
-  let productImageColumn = 'image';
 
   async function loadProducts() {
     const { data, error } = await supabase
@@ -30,10 +29,6 @@
       return [];
     }
     products = data || [];
-    // Existing Supabase projects may use `image_url`, while the newer schema uses `image`.
-    productImageColumn = products.some(p => Object.prototype.hasOwnProperty.call(p, 'image_url'))
-      ? 'image_url'
-      : 'image';
     return products;
   }
 
@@ -50,7 +45,7 @@
 
     body.innerHTML = arr.map(p => `
       <tr>
-        <td>${(p.image || p.image_url) ? `<img src="${esc(p.image || p.image_url)}" alt="" style="width:55px;height:55px;object-fit:cover;border-radius:8px">` : '—'}</td>
+        <td>${p.image ? `<img src="${esc(p.image)}" alt="" style="width:55px;height:55px;object-fit:cover;border-radius:8px">` : '—'}</td>
         <td><b>${esc(p.name)}</b><small>${esc(p.category || '')}</small></td>
         <td>${money(p.price)}</td>
         <td>${Number(p.stock || 0)}</td>
@@ -75,7 +70,7 @@
     p$('productPrice').value = p.price ?? 0;
     p$('productStock').value = p.stock ?? 0;
     p$('productCategory').value = p.category || '';
-    p$('productImage').value = p.image || p.image_url || '';
+    p$('productImage').value = p.image || '';
     p$('productActive').checked = p.active !== false;
     p$('productCancel').hidden = false;
 
@@ -156,9 +151,9 @@
         price,
         stock,
         category: p$('productCategory').value.trim(),
+        image: imageValue || null,
         active: p$('productActive').checked
       };
-      payload[productImageColumn] = imageValue || null;
 
       let result;
 
