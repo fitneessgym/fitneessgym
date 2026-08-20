@@ -20,11 +20,12 @@ $('customerForm').addEventListener('submit', async (e) => {
   }
 
   try {
-    // إنشاء ID قبل الإرسال إلى Supabase
+    // إنشاء ID نصي بشكل مضمون قبل الإرسال إلى Supabase
     const customerId =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : 'CUS-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      'CUS-' +
+      Date.now().toString(36) +
+      '-' +
+      Math.random().toString(36).slice(2, 10);
 
     // التأكد من عدم وجود عميل بنفس الاسم
     const { data: existing, error: checkError } =
