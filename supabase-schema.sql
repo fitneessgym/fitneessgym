@@ -110,3 +110,59 @@ on conflict (id) do nothing;
 
 -- IMPORTANT: after creating the Auth user, run this example with the real UUID/email:
 -- insert into public.admin_users(user_id,email) values ('YOUR-AUTH-USER-UUID','admin@fitnessgym.com');
+
+
+-- Store products
+create table if not exists public.products (
+  id text primary key default ('PROD-' || replace(gen_random_uuid()::text,'-','')),
+  name text not null,
+  description text not null default '',
+  price numeric(12,2) not null default 0,
+  stock integer not null default 0,
+  category text not null default '',
+  image text,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Customer payments
+create table if not exists public.payments (
+  id text primary key default ('PAY-' || replace(gen_random_uuid()::text,'-','')),
+  customer_id text not null references public.customers(id) on delete cascade,
+  amount numeric(12,2) not null default 0,
+  date date not null default current_date,
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.products enable row level security;
+alter table public.payments enable row level security;
+
+drop policy if exists "admins can manage products" on public.products;
+create policy "admins can manage products"
+on public.products for all to authenticated
+using (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))
+with check (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())));
+
+drop policy if exists "public can read active products" on public.products;
+create policy "public can read active products"
+on public.products for select to anon, authenticated
+using (active = true);
+
+drop policy if exists "admins can manage payments" on public.payments;
+create policy "admins can manage payments"
+on public.payments for all to authenticated
+using (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))
+with check (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())));
+
+grant select on public.products to anon, authenticated;
+grant select, insert, update, delete on public.products to authenticated;
+grant select, insert, update, delete on public.payments to authenticated;
+
+-- If the Supabase Auth user for the admin email already exists,
+-- this automatically registers it as an admin without requiring the UUID to be copied manually.
+insert into public.admin_users(user_id,email,role)
+select id,email,'admin' from auth.users
+where lower(email)=lower('shakarnah2004@gmail.com')
+on conflict (user_id) do update set email=excluded.email, role='admin';

@@ -17,9 +17,40 @@ const DEFAULT_SITE={
   ],
   galleryTitle:'أجواء FITNESS GYM', galleryNote:'يمكن استبدال هذه المساحات بصور النادي الحقيقية لاحقاً.',
   gallery:['STRENGTH','FOCUS','POWER','DISCIPLINE'],
-  contactTag:'تواصل معنا', contactTitle:'جاهز تبدأ?', contactText:'تواصل معنا للحجز والاستفسار عن الاشتراكات.', phone:'+972 54-670-0672', whatsapp:'+972 54-670-0672', address:'بيت لحم - نحالين - وسط البلد', hours:'السبت – الخميس | 06:00 – 23:00',
+  contactTag:'تواصل معنا', contactTitle:'جاهز تبدأ؟', contactText:'تواصل معنا للحجز والاستفسار عن الاشتراكات.', phone:'+972 54-670-0672', whatsapp:'+972 54-670-0672', address:'بيت لحم - نحالين - وسط البلد', hours:'السبت – الخميس | 06:00 – 23:00',
   footer:'القوة • الانضباط • الاستمرارية'
 };
 function cloneDefault(){return JSON.parse(JSON.stringify(DEFAULT_SITE));}
-function loadSite(){try{return {...cloneDefault(),...(JSON.parse(localStorage.getItem(SITE_KEY)||'{}'))}}catch(e){return cloneDefault()}}
-function saveSite(site){localStorage.setItem(SITE_KEY,JSON.stringify(site));}
+function loadSiteLocal(){try{return {...cloneDefault(),...(JSON.parse(localStorage.getItem(SITE_KEY)||'{}'))}}catch(e){return cloneDefault()}}
+function saveSiteLocal(site){localStorage.setItem(SITE_KEY,JSON.stringify(site));}
+
+async function loadSiteRemote(){
+  const fallback=loadSiteLocal();
+  try{
+    if(!window.supabaseClient) return fallback;
+    const {data,error}=await window.supabaseClient.from('site_settings').select('data').eq('id',1).maybeSingle();
+    if(error || !data?.data) return fallback;
+    const remote={...cloneDefault(),...data.data};
+    saveSiteLocal(remote);
+    return remote;
+  }catch(e){
+    console.warn('Remote site settings unavailable:',e);
+    return fallback;
+  }
+}
+
+async function saveSite(site){
+  saveSiteLocal(site);
+  try{
+    if(!window.supabaseClient) return;
+    const {error}=await window.supabaseClient.from('site_settings').upsert({
+      id:1,
+      data:site,
+      updated_at:new Date().toISOString()
+    },{onConflict:'id'});
+    if(error) throw error;
+  }catch(e){
+    console.error('Saving site settings failed:',e);
+    throw e;
+  }
+}

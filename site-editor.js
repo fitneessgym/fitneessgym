@@ -1,5 +1,5 @@
 if(!isAdminLoggedIn()){window.location.replace('admin-login.html');throw new Error('Unauthorized');}
-let site=loadSite();
+let site=loadSiteLocal();
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 function bindSimple(){['brand','heroTag','heroTitle','heroAccent','heroText','aboutTag','aboutTitle','aboutText','galleryTitle','galleryNote','contactTag','contactTitle','contactText','phone','whatsapp','address','hours','footer'].forEach(k=>{if($(k))$(k).value=site[k]??'';});}
@@ -17,7 +17,16 @@ function collect(){
  document.querySelectorAll('[data-pt]').forEach(e=>site.plans[+e.dataset.pt].title=e.value.trim());document.querySelectorAll('[data-pp]').forEach(e=>site.plans[+e.dataset.pp].price=e.value.trim());document.querySelectorAll('[data-pper]').forEach(e=>site.plans[+e.dataset.pper].period=e.value.trim());document.querySelectorAll('[data-ph]').forEach(e=>site.plans[+e.dataset.ph].hot=e.value==='true');document.querySelectorAll('[data-pf]').forEach(e=>site.plans[+e.dataset.pf].features=e.value.split('\n').map(x=>x.trim()).filter(Boolean));
  document.querySelectorAll('[data-gallery]').forEach(e=>site.gallery[+e.dataset.gallery]=e.value.trim());
 }
-$('saveBtn').onclick=()=>{collect();saveSite(site);$('saveMsg').textContent='✓ تم حفظ جميع التعديلات بنجاح.';setTimeout(()=>$('saveMsg').textContent='',3000);};
+$('saveBtn').onclick=async()=>{
+  collect();
+  try{
+    await saveSite(site);
+    $('saveMsg').textContent='✓ تم حفظ جميع التعديلات بنجاح.';
+  }catch(e){
+    $('saveMsg').textContent='تعذر الحفظ في قاعدة البيانات: '+(e.message||'خطأ');
+  }
+  setTimeout(()=>$('saveMsg').textContent='',5000);
+};
 $('previewBtn').onclick=()=>window.open('index.html','_blank');
 $('logoutBtn').onclick=logoutAdmin;
 document.querySelectorAll('[data-editor]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-editor]').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.editor-section').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('editor-'+b.dataset.editor).classList.add('active');});
