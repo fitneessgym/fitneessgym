@@ -32,7 +32,7 @@
     $('playerUpcoming').innerHTML=upcoming.length?upcoming.map(x=>workoutCard(x,true)).join(''):'<div class="player-empty">لا توجد تدريبات قادمة مسجلة لك حاليًا.</div>';
     $('playerHistory').innerHTML=history.length?history.map(x=>workoutCard(x,false)).join(''):'<div class="player-empty">لا يوجد سجل تمارين سابق بعد.</div>';
     const n=data.nutrition||null;
-    $('playerNutrition').innerHTML=n?`<div class="player-nutrition-grid"><div><b>${Math.round(n.bmr||0)}</b><small>BMR</small></div><div><b>${Math.round(n.tdee||0)}</b><small>TDEE</small></div><div><b>${Math.round(n.target_calories||0)}</b><small>السعرات المستهدفة</small></div><div><b>${Math.round(n.protein_g||0)}غ</b><small>بروتين</small></div><div><b>${Math.round(n.carbs_g||0)}غ</b><small>كربوهيدرات</small></div><div><b>${Math.round(n.fats_g||0)}غ</b><small>دهون</small></div></div>`:'<div class="player-empty">لم يتم حفظ ملف سعرات لك بعد.</div>';
+    $('playerNutrition').innerHTML=n?`<div class="player-nutrition-grid"><div><b>${Math.round(n.bmr||0)}</b><small>BMR</small></div><div><b>${Math.round(n.tdee||0)}</b><small>TDEE</small></div><div><b>${Math.round(n.target_calories ?? n.daily_calories ?? 0)}</b><small>السعرات المستهدفة</small></div><div><b>${Math.round(n.protein_g||0)}غ</b><small>بروتين</small></div><div><b>${Math.round(n.carbs_g||0)}غ</b><small>كربوهيدرات</small></div><div><b>${Math.round(n.fats_g||0)}غ</b><small>دهون</small></div></div>`:'<div class="player-empty">لم يتم حفظ ملف سعرات لك بعد.</div>';
     $('playerSummary').innerHTML=`<div><b>${upcoming.length}</b><small>تمارين قادمة</small></div><div><b>${history.length}</b><small>تمارين سابقة</small></div><div><b>${player.phone||'—'}</b><small>رقم اللاعب</small></div>`;
     loginBox.hidden=true; dash.hidden=false;
     location.hash='player-portal';
@@ -59,6 +59,29 @@
         throw error;
       }
       if(!data?.customer)throw new Error('INVALID_LOGIN');
+
+      // The player portal must read the current nutrition record from
+      // customer_nutrition. Older player_login RPCs return the legacy
+      // customer_nutrition_profiles record, so merge the current values here.
+      try{
+        const {data:currentNutrition, error:nutritionError}=await supabase
+          .from('customer_nutrition')
+          .select('*')
+          .eq('customer_id', String(data.customer.id))
+          .maybeSingle();
+        if(!nutritionError && currentNutrition){
+          data.nutrition = {
+            ...(data.nutrition||{}),
+            bmr: currentNutrition.bmr ?? data.nutrition?.bmr,
+            tdee: currentNutrition.tdee ?? data.nutrition?.tdee,
+            target_calories: currentNutrition.daily_calories ?? data.nutrition?.target_calories,
+            protein_g: currentNutrition.protein_g ?? data.nutrition?.protein_g,
+            carbs_g: currentNutrition.carbs_g ?? data.nutrition?.carbs_g,
+            fats_g: currentNutrition.fat_g ?? currentNutrition.fats_g ?? data.nutrition?.fats_g
+          };
+        }
+      }catch(_){ /* keep legacy RPC nutrition as fallback */ }
+
       sessionStorage.setItem('fitness_player_session','1');
       render(data); msg.textContent=''; form.reset();
     }catch(err){
