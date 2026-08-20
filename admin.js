@@ -1,615 +1,685 @@
-/* FITNESS GYM - Admin dashboard (Supabase)
-   Customers + debts + payments + invoices.
-   Product/gallery management is handled by admin-store.js.
-*/
+/* FITNESS GYM - Admin products & gallery manager */
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, m => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#039;'
+  }[m]));
+  const money = n => `₪${Number(n || 0).toLocaleString('en-US')}`;
+  const STORAGE_BUCKET = 'gym-images';
 
-let db = { customers: [], invoices: [] };
+  let products = [];
+  let gallery = [];
 
-const money = n => `₪${Number(n || 0).toLocaleString('en-US')}`;
-const today = () => new Date().toISOString().slice(0, 10);
-const $ = id => document.getElementById(id);
+  async function loadStore() {
+    // تحميل المنتجات بشكل مستقل عن المعرض
+    const pRes = await supabaseClient
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-const esc = v => String(v ?? '').replace(/[&<>"']/g, m => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#039;'
-}[m]));
+    if (pRes.error) throw pRes.error;
 
-function customerById(id) {
-  return db.customers.find(c => c.id === id);
-}
+    products = pRes.data || [];
+    renderProducts();
 
-function normalizeName(name) {
-  return String(name || '')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toLocaleLowerCase();
-}
+    // تحميل المعرض بشكل مستقل حتى لا يمنع خطأ المعرض ظهور المنتجات
+    const gRes = await supabaseClient
+      .from('gallery')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
 
-function findCustomerByName(name, exceptId = '') {
-  const normalized = normalizeName(name);
-  if (!normalized) return null;
-  return db.customers.find(c => c.id !== exceptId && normalizeName(c.name) === normalized) || null;
-}
-
-async function loadCustomers() {
-  const { data, error } = await supabaseClient
-    .from('customers')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  db.customers = (data || []).map(c => ({
-    id: c.id,
-    name: c.name,
-    phone: c.phone,
-    plan: c.plan,
-    total: Number(c.total || 0),
-    paid: Number(c.paid || 0),
-    start: c.start || '',
-    end: c.end || ''
-  }));
-}
-
-async function loadInvoices() {
-  const { data, error } = await supabaseClient
-    .from('invoices')
-    .select('*')
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  db.invoices = (data || []).map(i => ({
-    id: i.id,
-    customerId: i.customer_id,
-    amount: Number(i.amount || 0),
-    type: i.type,
-    date: i.date || '',
-    note: i.note || ''
-  }));
-}
-
-async function loadDB() {
-  // Load each table independently so an error in invoices does not hide customers.
-  let customersError = null;
-  let invoicesError = null;
-
-  try {
-    await loadCustomers();
-  } catch (e) {
-    customersError = e;
-    console.error('Customers load error:', e);
-    db.customers = [];
-  }
-
-  try {
-    await loadInvoices();
-  } catch (e) {
-    invoicesError = e;
-    console.error('Invoices load error:', e);
-    db.invoices = [];
-  }
-
-  if (customersError) throw customersError;
-  if (invoicesError) {
-    // Keep the customer screen usable even if invoices has a temporary/RLS issue.
-    console.warn('Invoices could not be loaded. Customer data is still available.');
-  }
-}
-
-async function saveCustomer(c) {
-  const { error } = await supabaseClient
-    .from('customers')
-    .upsert({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-      plan: c.plan,
-      total: c.total,
-      paid: c.paid,
-      start: c.start || null,
-      end: c.end || null
-    }, { onConflict: 'id' });
-
-  if (error) throw error;
-}
-
-async function saveInvoice(i) {
-  const { error } = await supabaseClient
-    .from('invoices')
-    .upsert({
-      id: i.id,
-      customer_id: i.customerId,
-      amount: i.amount,
-      type: i.type,
-      date: i.date,
-      note: i.note || ''
-    }, { onConflict: 'id' });
-
-  if (error) throw error;
-}
-
-async function deleteInvoiceRemote(id) {
-  const { error } = await supabaseClient
-    .from('invoices')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-}
-
-async function deleteCustomerRemote(id) {
-  const { error } = await supabaseClient
-    .from('customers')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-}
-
-function setBusy(form, busy, text) {
-  const btn = form?.querySelector('button[type="submit"]');
-  if (!btn) return;
-  btn.disabled = busy;
-  btn.textContent = busy ? text : (btn.dataset.defaultText || 'حفظ');
-}
-
-function initDefaultButtonText() {
-  document.querySelectorAll('button[type="submit"]').forEach(btn => {
-    btn.dataset.defaultText = btn.textContent;
-  });
-}
-
-/* =========================
-   تبويبات لوحة التحكم
-========================= */
-
-document.querySelectorAll('.dash-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.dash-tab').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.dash-panel').forEach(x => x.classList.remove('active'));
-
-    btn.classList.add('active');
-    const panel = $('tab-' + btn.dataset.tab);
-    if (panel) panel.classList.add('active');
-  });
-});
-
-/* =========================
-   إضافة عميل
-========================= */
-
-$('customerForm')?.addEventListener('submit', async e => {
-  e.preventDefault();
-  const form = e.currentTarget;
-
-  const name = $('customerName')?.value.trim() || '';
-  const phone = $('customerPhone')?.value.trim() || '';
-  const total = Number($('customerTotal')?.value || 0);
-  const paid = Number($('customerPaid')?.value || 0);
-
-  if (!name) {
-    alert('أدخل اسم العميل.');
-    return;
-  }
-
-  // منع تكرار اسم العميل (مع تجاهل اختلاف المسافات وحالة الأحرف).
-  const duplicate = findCustomerByName(name);
-  if (duplicate) {
-    alert(`لا يمكن إضافة العميل. الاسم موجود مسبقاً: ${duplicate.name}`);
-    return;
-  }
-
-  if (paid < 0 || total < 0) {
-    alert('القيم المالية يجب أن تكون صفر أو أكبر.');
-    return;
-  }
-
-  if (paid > total) {
-    alert('المبلغ المدفوع لا يمكن أن يكون أكبر من الإجمالي.');
-    return;
-  }
-
-  const c = {
-    id: crypto.randomUUID(),
-    name,
-    phone,
-    plan: $('customerPlan')?.value || 'شهري',
-    total,
-    paid,
-    start: $('customerStart')?.value || '',
-    end: $('customerEnd')?.value || ''
-  };
-
-  setBusy(form, true, 'جاري الحفظ...');
-
-  try {
-    await saveCustomer(c);
-    db.customers.unshift(c);
-    form.reset();
-    renderDashboard();
-    alert('تم حفظ العميل في قاعدة البيانات.');
-  } catch (err) {
-    console.error(err);
-    alert(`تعذر حفظ العميل: ${err.message || 'خطأ غير معروف'}`);
-  } finally {
-    setBusy(form, false);
-  }
-});
-
-$('customerSearch')?.addEventListener('input', renderCustomers);
-
-/* =========================
-   تسجيل دفعة
-========================= */
-
-$('paymentForm')?.addEventListener('submit', async e => {
-  e.preventDefault();
-  const form = e.currentTarget;
-
-  const c = customerById($('paymentCustomer')?.value);
-  const amount = Number($('paymentAmount')?.value || 0);
-
-  if (!c) {
-    alert('اختر عميلاً أولاً.');
-    return;
-  }
-
-  if (amount <= 0) {
-    alert('أدخل قيمة دفعة صحيحة.');
-    return;
-  }
-
-  const remaining = Math.max(0, c.total - c.paid);
-  if (amount > remaining) {
-    alert('قيمة الدفعة أكبر من الدين المتبقي.');
-    return;
-  }
-
-  const oldPaid = c.paid;
-  const invoice = {
-    id: 'INV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-    customerId: c.id,
-    amount,
-    type: 'دفعة',
-    date: today(),
-    note: $('paymentNote')?.value.trim() || ''
-  };
-
-  c.paid += amount;
-  setBusy(form, true, 'جاري الحفظ...');
-
-  try {
-    await saveCustomer(c);
-    await saveInvoice(invoice);
-    db.invoices.unshift(invoice);
-    form.reset();
-    renderDashboard();
-    alert('تم تسجيل الدفعة.');
-  } catch (err) {
-    c.paid = oldPaid;
-    try { await saveCustomer(c); } catch (_) {}
-    console.error(err);
-    alert(`تعذر تسجيل الدفعة: ${err.message || 'خطأ غير معروف'}`);
-  } finally {
-    setBusy(form, false);
-  }
-});
-
-/* =========================
-   إضافة دين على عميل
-========================= */
-
-$('debtForm')?.addEventListener('submit', async e => {
-  e.preventDefault();
-  const form = e.currentTarget;
-
-  const c = customerById($('debtCustomer')?.value);
-  const amount = Number($('debtAmount')?.value || 0);
-
-  if (!c) {
-    alert('اختر عميلاً أولاً.');
-    return;
-  }
-
-  if (amount <= 0) {
-    alert('أدخل قيمة دين صحيحة.');
-    return;
-  }
-
-  const oldTotal = c.total;
-  c.total += amount;
-
-  const invoice = {
-    id: 'DEBT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-    customerId: c.id,
-    amount,
-    type: 'دين',
-    date: $('debtDate')?.value || today(),
-    note: $('debtNote')?.value.trim() || ''
-  };
-
-  setBusy(form, true, 'جاري حفظ الدين...');
-
-  try {
-    await saveCustomer(c);
-    try {
-      await saveInvoice(invoice);
-    } catch (invoiceError) {
-      c.total = oldTotal;
-      try { await saveCustomer(c); } catch (_) {}
-      throw invoiceError;
+    if (gRes.error) {
+      console.error('تعذر تحميل المعرض:', gRes.error);
+      gallery = [];
+    } else {
+      gallery = gRes.data || [];
     }
 
-    db.invoices.unshift(invoice);
-    form.reset();
-    if ($('debtDate')) $('debtDate').value = today();
-    renderDashboard();
-    alert('تمت إضافة الدين على العميل بنجاح.');
-  } catch (err) {
-    console.error(err);
-    alert(`تعذر إضافة الدين: ${err.message || 'خطأ غير معروف'}`);
-  } finally {
-    setBusy(form, false);
-  }
-});
-
-/* =========================
-   إصدار فاتورة
-========================= */
-
-$('invoiceForm')?.addEventListener('submit', async e => {
-  e.preventDefault();
-  const form = e.currentTarget;
-
-  const c = customerById($('invoiceCustomer')?.value);
-  const amount = Number($('invoiceAmount')?.value || 0);
-
-  if (!c) {
-    alert('اختر عميلاً أولاً.');
-    return;
+    renderGallery();
   }
 
-  if (amount <= 0) {
-    alert('أدخل قيمة فاتورة صحيحة.');
-    return;
+  function preview(inputId, previewId) {
+    const url = $(inputId)?.value.trim();
+    const box = $(previewId);
+
+    if (!box) return;
+
+    box.innerHTML = url
+      ? `<img src="${esc(url)}" alt="معاينة" onerror="this.style.display='none'">`
+      : '';
   }
 
-  const invoice = {
-    id: 'INV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-    customerId: c.id,
-    amount,
-    type: $('invoiceType')?.value || 'فاتورة',
-    date: $('invoiceDate')?.value || today(),
-    note: $('invoiceNote')?.value.trim() || ''
+  function previewFile(fileInputId, previewId) {
+    const input = $(fileInputId);
+    const box = $(previewId);
+    const file = input?.files?.[0];
+
+    if (!box || !file) return;
+
+    if (!file.type.startsWith('image/')) {
+      input.value = '';
+      box.innerHTML = '';
+      alert('الملف يجب أن يكون صورة.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      input.value = '';
+      box.innerHTML = '';
+      alert('حجم الصورة يجب ألا يتجاوز 5MB.');
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    box.innerHTML = `<img src="${url}" alt="معاينة">`;
+  }
+
+  async function uploadImage(file, folder) {
+    if (!file) return '';
+
+    if (!file.type.startsWith('image/')) {
+      throw new Error('الملف المختار ليس صورة.');
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('حجم الصورة أكبر من 5MB.');
+    }
+
+    const ext =
+      (file.name.split('.').pop() || 'jpg')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '') || 'jpg';
+
+    const path =
+      `${folder}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabaseClient
+      .storage
+      .from(STORAGE_BUCKET)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      });
+
+    if (error) throw error;
+
+    const { data } =
+      supabaseClient
+        .storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(path);
+
+    if (!data?.publicUrl) {
+      throw new Error('تعذر إنشاء رابط الصورة.');
+    }
+
+    return data.publicUrl;
+  }
+
+  function renderProducts() {
+    const body = $('productsAdminBody');
+
+    if (!body) return;
+
+    const q =
+      ($('productSearch')?.value || '')
+        .toLowerCase()
+        .trim();
+
+    const rows = products.filter(p =>
+      `${p.name || ''} ${p.category || ''}`
+        .toLowerCase()
+        .includes(q)
+    );
+
+    body.innerHTML =
+      rows.map(p => `
+        <tr>
+          <td>
+            ${
+              p.image_url
+                ? `<img class="admin-thumb" src="${esc(p.image_url)}" alt="" onerror="this.style.opacity=.25">`
+                : '—'
+            }
+          </td>
+
+          <td>
+            <b>${esc(p.name)}</b>
+            <small>${esc(p.category || '')}</small>
+          </td>
+
+          <td>${money(p.price)}</td>
+
+          <td>${Number(p.stock || 0)}</td>
+
+          <td>
+            <span class="status-pill ${p.active ? 'on':'off'}">
+              ${p.active ? 'ظاهر':'مخفي'}
+            </span>
+          </td>
+
+          <td>
+            <div class="mini-row">
+              <button
+                class="mini edit"
+                type="button"
+                onclick="editProduct('${p.id}')">
+                تعديل
+              </button>
+
+              <button
+                class="mini"
+                type="button"
+                onclick="toggleProduct('${p.id}')">
+                ${p.active ? 'إخفاء':'إظهار'}
+              </button>
+
+              <button
+                class="mini danger"
+                type="button"
+                onclick="deleteProduct('${p.id}')">
+                حذف
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('') ||
+      `<tr>
+        <td colspan="6" class="empty">
+          لا توجد منتجات
+        </td>
+      </tr>`;
+  }
+
+  function renderGallery() {
+    const body = $('galleryAdminBody');
+
+    if (!body) return;
+
+    body.innerHTML =
+      gallery.map(g => `
+        <tr>
+          <td>
+            ${
+              g.image_url
+                ? `<img class="admin-thumb" src="${esc(g.image_url)}" alt="" onerror="this.style.opacity=.25">`
+                : '—'
+            }
+          </td>
+
+          <td>${esc(g.title || 'بدون عنوان')}</td>
+
+          <td>${Number(g.sort_order || 0)}</td>
+
+          <td>
+            <span class="status-pill ${g.active ? 'on':'off'}">
+              ${g.active ? 'ظاهر':'مخفي'}
+            </span>
+          </td>
+
+          <td>
+            <div class="mini-row">
+              <button
+                class="mini edit"
+                type="button"
+                onclick="editGallery('${g.id}')">
+                تعديل
+              </button>
+
+              <button
+                class="mini"
+                type="button"
+                onclick="toggleGallery('${g.id}')">
+                ${g.active ? 'إخفاء':'إظهار'}
+              </button>
+
+              <button
+                class="mini danger"
+                type="button"
+                onclick="deleteGallery('${g.id}')">
+                حذف
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('') ||
+      `<tr>
+        <td colspan="5" class="empty">
+          لا توجد صور في المعرض
+        </td>
+      </tr>`;
+  }
+
+  function resetProductForm() {
+    $('productAdminForm')?.reset();
+
+    if ($('productActive')) {
+      $('productActive').checked = true;
+    }
+
+    $('productId').value = '';
+    $('productFormTitle').textContent = 'إضافة منتج';
+    $('productSaveBtn').textContent = 'حفظ المنتج';
+    $('productCancelBtn').hidden = true;
+    $('productPreview').innerHTML = '';
+  }
+
+  function resetGalleryForm() {
+    $('galleryAdminForm')?.reset();
+
+    if ($('galleryActive')) {
+      $('galleryActive').checked = true;
+    }
+
+    $('gallerySortOrder').value = 0;
+    $('galleryId').value = '';
+    $('galleryFormTitle').textContent = 'إضافة صورة للمعرض';
+    $('gallerySaveBtn').textContent = 'حفظ الصورة';
+    $('galleryCancelBtn').hidden = true;
+    $('galleryPreview').innerHTML = '';
+  }
+
+  window.editProduct = id => {
+    const p = products.find(x => x.id === id);
+
+    if (!p) return;
+
+    $('productId').value = p.id;
+    $('productName').value = p.name || '';
+    $('productDescription').value = p.description || '';
+    $('productPrice').value = p.price ?? 0;
+    $('productStock').value = p.stock ?? 0;
+    $('productCategory').value = p.category || '';
+    $('productImageUrl').value = p.image_url || '';
+    $('productActive').checked = !!p.active;
+
+    $('productFormTitle').textContent = 'تعديل المنتج';
+    $('productSaveBtn').textContent = 'حفظ التعديلات';
+    $('productCancelBtn').hidden = false;
+
+    preview('productImageUrl', 'productPreview');
+
+    $('productName').focus();
   };
 
-  setBusy(form, true, 'جاري الإصدار...');
+  window.editGallery = id => {
+    const g = gallery.find(x => x.id === id);
 
-  try {
-    await saveInvoice(invoice);
-    db.invoices.unshift(invoice);
-    form.reset();
-    if ($('invoiceDate')) $('invoiceDate').value = today();
-    renderDashboard();
-    alert('تم إصدار الفاتورة.');
-  } catch (err) {
-    console.error(err);
-    alert(`تعذر إصدار الفاتورة: ${err.message || 'خطأ غير معروف'}`);
-  } finally {
-    setBusy(form, false);
+    if (!g) return;
+
+    $('galleryId').value = g.id;
+    $('galleryTitle').value = g.title || '';
+    $('galleryImageUrl').value = g.image_url || '';
+    $('gallerySortOrder').value = g.sort_order ?? 0;
+    $('galleryActive').checked = !!g.active;
+
+    $('galleryFormTitle').textContent = 'تعديل صورة المعرض';
+    $('gallerySaveBtn').textContent = 'حفظ التعديلات';
+    $('galleryCancelBtn').hidden = false;
+
+    preview('galleryImageUrl', 'galleryPreview');
+
+    $('galleryTitle').focus();
+  };
+
+  window.toggleProduct = async id => {
+    const p = products.find(x => x.id === id);
+
+    if (!p) return;
+
+    const { error } =
+      await supabaseClient
+        .from('products')
+        .update({ active: !p.active })
+        .eq('id', id);
+
+    if (error) {
+      return alert('تعذر تغيير حالة المنتج.');
+    }
+
+    p.active = !p.active;
+
+    renderProducts();
+  };
+
+  window.toggleGallery = async id => {
+    const g = gallery.find(x => x.id === id);
+
+    if (!g) return;
+
+    const { error } =
+      await supabaseClient
+        .from('gallery')
+        .update({ active: !g.active })
+        .eq('id', id);
+
+    if (error) {
+      return alert('تعذر تغيير حالة الصورة.');
+    }
+
+    g.active = !g.active;
+
+    renderGallery();
+  };
+
+  window.deleteProduct = async id => {
+    if (!confirm('هل تريد حذف المنتج؟')) return;
+
+    const { error } =
+      await supabaseClient
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+      return alert('تعذر حذف المنتج.');
+    }
+
+    products =
+      products.filter(p => p.id !== id);
+
+    renderProducts();
+  };
+
+  window.deleteGallery = async id => {
+    if (!confirm('هل تريد حذف صورة المعرض؟')) return;
+
+    const { error } =
+      await supabaseClient
+        .from('gallery')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+      return alert('تعذر حذف الصورة.');
+    }
+
+    gallery =
+      gallery.filter(g => g.id !== id);
+
+    renderGallery();
+  };
+
+  $('productAdminForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const btn = $('productSaveBtn');
+
+    btn.disabled = true;
+    btn.textContent = 'جاري الحفظ...';
+
+    const id = $('productId').value;
+
+    try {
+      let imageUrl =
+        $('productImageUrl').value.trim();
+
+      const file =
+        $('productImageFile')?.files?.[0];
+
+      if (file) {
+        btn.textContent = 'جاري رفع الصورة...';
+
+        imageUrl =
+          await uploadImage(file, 'products');
+      }
+
+      if (!imageUrl) {
+        throw new Error(
+          'اختر صورة أو أدخل رابط صورة.'
+        );
+      }
+
+      const payload = {
+        name: $('productName').value.trim(),
+        description: $('productDescription').value.trim(),
+        price: Number($('productPrice').value || 0),
+        stock: Number($('productStock').value || 0),
+        category: $('productCategory').value.trim(),
+        image_url: imageUrl,
+        active: $('productActive').checked
+      };
+
+      let res;
+
+      if (id) {
+        res =
+          await supabaseClient
+            .from('products')
+            .update(payload)
+            .eq('id', id)
+            .select()
+            .single();
+      } else {
+        res =
+          await supabaseClient
+            .from('products')
+            .insert(payload)
+            .select()
+            .single();
+      }
+
+      if (res.error) {
+        throw res.error;
+      }
+
+      // إعادة تحميل المنتجات من Supabase بعد الحفظ
+      // للتأكد من ظهور المنتج الجديد مباشرة.
+      await loadStore();
+
+      resetProductForm();
+
+      renderProducts();
+
+      alert(
+        id
+          ? 'تم تحديث المنتج.'
+          : 'تمت إضافة المنتج.'
+      );
+
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        `تعذر حفظ المنتج: ${
+          err.message || 'خطأ غير معروف'
+        }`
+      );
+
+    } finally {
+      btn.disabled = false;
+
+      if (!$('productId').value) {
+        btn.textContent = 'حفظ المنتج';
+      }
+    }
+  });
+
+  $('galleryAdminForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const btn = $('gallerySaveBtn');
+
+    btn.disabled = true;
+    btn.textContent = 'جاري الحفظ...';
+
+    const id = $('galleryId').value;
+
+    try {
+      let imageUrl =
+        $('galleryImageUrl').value.trim();
+
+      const file =
+        $('galleryImageFile')?.files?.[0];
+
+      if (file) {
+        btn.textContent = 'جاري رفع الصورة...';
+
+        imageUrl =
+          await uploadImage(file, 'gallery');
+      }
+
+      if (!imageUrl) {
+        throw new Error(
+          'اختر صورة أو أدخل رابط صورة.'
+        );
+      }
+
+      const payload = {
+        title: $('galleryTitle').value.trim(),
+        image_url: imageUrl,
+        sort_order:
+          Number(
+            $('gallerySortOrder').value || 0
+          ),
+        active:
+          $('galleryActive').checked
+      };
+
+      let res;
+
+      if (id) {
+        res =
+          await supabaseClient
+            .from('gallery')
+            .update(payload)
+            .eq('id', id)
+            .select()
+            .single();
+      } else {
+        res =
+          await supabaseClient
+            .from('gallery')
+            .insert(payload)
+            .select()
+            .single();
+      }
+
+      if (res.error) {
+        throw res.error;
+      }
+
+      if (id) {
+        gallery =
+          gallery.map(g =>
+            g.id === id ? res.data : g
+          );
+      } else {
+        gallery.push(res.data);
+      }
+
+      gallery.sort(
+        (a, b) =>
+          Number(a.sort_order || 0) -
+          Number(b.sort_order || 0)
+      );
+
+      resetGalleryForm();
+      renderGallery();
+
+      alert(
+        id
+          ? 'تم تحديث الصورة.'
+          : 'تمت إضافة الصورة للمعرض.'
+      );
+
+    } catch (err) {
+      console.error(err);
+
+      alert(
+        `تعذر حفظ الصورة: ${
+          err.message || 'خطأ غير معروف'
+        }`
+      );
+
+    } finally {
+      btn.disabled = false;
+
+      if (!$('galleryId').value) {
+        btn.textContent = 'حفظ الصورة';
+      }
+    }
+  });
+
+  $('productSearch')
+    ?.addEventListener(
+      'input',
+      renderProducts
+    );
+
+  $('productImageUrl')
+    ?.addEventListener(
+      'input',
+      () =>
+        preview(
+          'productImageUrl',
+          'productPreview'
+        )
+    );
+
+  $('galleryImageUrl')
+    ?.addEventListener(
+      'input',
+      () =>
+        preview(
+          'galleryImageUrl',
+          'galleryPreview'
+        )
+    );
+
+  $('productImageFile')
+    ?.addEventListener(
+      'change',
+      () =>
+        previewFile(
+          'productImageFile',
+          'productPreview'
+        )
+    );
+
+  $('galleryImageFile')
+    ?.addEventListener(
+      'change',
+      () =>
+        previewFile(
+          'galleryImageFile',
+          'galleryPreview'
+        )
+    );
+
+  $('productCancelBtn')
+    ?.addEventListener(
+      'click',
+      resetProductForm
+    );
+
+  $('galleryCancelBtn')
+    ?.addEventListener(
+      'click',
+      resetGalleryForm
+    );
+
+  async function bootStore() {
+    if (!$('tab-store')) return;
+
+    try {
+      await requireAdmin();
+      await loadStore();
+
+    } catch (e) {
+      console.error(e);
+      alert(
+        'تعذر تحميل المنتجات والمعرض.'
+      );
+    }
   }
-});
 
-/* =========================
-   عرض العملاء
-========================= */
+  bootStore();
 
-function renderCustomers() {
-  const q = ($('customerSearch')?.value || '').trim().toLocaleLowerCase();
-  const body = $('customersBody');
-  if (!body) return;
-
-  body.innerHTML = db.customers
-    .filter(c => (`${c.name} ${c.phone}`).toLocaleLowerCase().includes(q))
-    .map(c => `
-      <tr>
-        <td><b>${esc(c.name)}</b><small>${esc(c.phone)}</small></td>
-        <td>${esc(c.plan)}</td>
-        <td>${money(c.total)}</td>
-        <td>${money(c.paid)}</td>
-        <td class="debt-cell">${money(Math.max(0, c.total - c.paid))}</td>
-        <td>${c.start || '—'}<br>${c.end || '—'}</td>
-        <td><button class="mini danger" onclick="deleteCustomer('${esc(c.id)}')">حذف</button></td>
-      </tr>
-    `)
-    .join('') || `
-      <tr><td colspan="7" class="empty">لا يوجد عملاء بعد</td></tr>
-    `;
-}
-
-/* =========================
-   عرض الديون
-========================= */
-
-function renderDebts() {
-  const body = $('debtsBody');
-  if (!body) return;
-
-  body.innerHTML = db.customers
-    .filter(c => c.total - c.paid > 0)
-    .map(c => `
-      <tr>
-        <td><b>${esc(c.name)}</b></td>
-        <td>${esc(c.phone)}</td>
-        <td>${money(c.total)}</td>
-        <td>${money(c.paid)}</td>
-        <td class="debt-cell">${money(c.total - c.paid)}</td>
-        <td><button class="mini" onclick="quickPay('${esc(c.id)}')">تسديد</button></td>
-      </tr>
-    `)
-    .join('') || `
-      <tr><td colspan="6" class="empty">لا توجد ديون حالياً 🎉</td></tr>
-    `;
-}
-
-/* =========================
-   عرض الفواتير
-========================= */
-
-function renderInvoices() {
-  const body = $('invoicesBody');
-  if (!body) return;
-
-  body.innerHTML = db.invoices
-    .map(i => {
-      const c = customerById(i.customerId);
-      return `
-        <tr>
-          <td>${esc(i.id)}</td>
-          <td>${c ? esc(c.name) : '—'}</td>
-          <td>${esc(i.type)}</td>
-          <td>${money(i.amount)}</td>
-          <td>${i.date || '—'}</td>
-          <td><button class="mini danger" onclick="deleteInvoice('${esc(i.id)}')">حذف</button></td>
-        </tr>
-      `;
-    })
-    .join('') || `
-      <tr><td colspan="6" class="empty">لا توجد فواتير بعد</td></tr>
-    `;
-}
-
-/* =========================
-   لوحة التحكم
-========================= */
-
-function renderDashboard() {
-  const debt = db.customers.reduce((s, c) => s + Math.max(0, c.total - c.paid), 0);
-  const paid = db.customers.reduce((s, c) => s + c.paid, 0);
-  const inv = db.invoices.reduce((s, i) => s + Number(i.amount || 0), 0);
-
-  if ($('statCustomers')) $('statCustomers').textContent = db.customers.length;
-  if ($('statInvoices')) $('statInvoices').textContent = money(inv);
-  if ($('statDebts')) $('statDebts').textContent = money(debt);
-  if ($('statPaid')) $('statPaid').textContent = money(paid);
-
-  renderCustomers();
-  renderDebts();
-  renderInvoices();
-  fillCustomerSelects();
-}
-
-function fillCustomerSelects() {
-  const options = db.customers
-    .map(c => `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(c.phone)}</option>`)
-    .join('');
-
-  if ($('paymentCustomer')) {
-    $('paymentCustomer').innerHTML = options || '<option value="">لا يوجد عملاء</option>';
-  }
-
-  if ($('invoiceCustomer')) {
-    $('invoiceCustomer').innerHTML = options || '<option value="">لا يوجد عملاء</option>';
-  }
-
-  if ($('debtCustomer')) {
-    $('debtCustomer').innerHTML = options || '<option value="">لا يوجد عملاء</option>';
-  }
-}
-
-/* =========================
-   الدفع السريع
-========================= */
-
-function openPaymentForm() {
-  $('[data-tab="debts"]')?.click();
-  $('paymentCustomer')?.focus();
-}
-
-function quickPay(id) {
-  $('[data-tab="debts"]')?.click();
-  if ($('paymentCustomer')) $('paymentCustomer').value = id;
-  $('paymentAmount')?.focus();
-}
-
-/* =========================
-   حذف عميل
-========================= */
-
-async function deleteCustomer(id) {
-  if (!confirm('حذف العميل وكل فواتيره من قاعدة البيانات؟')) return;
-
-  try {
-    await deleteCustomerRemote(id);
-    db.customers = db.customers.filter(c => c.id !== id);
-    db.invoices = db.invoices.filter(i => i.customerId !== id);
-    renderDashboard();
-  } catch (e) {
-    console.error(e);
-    alert(`تعذر حذف العميل: ${e.message || 'خطأ غير معروف'}`);
-  }
-}
-
-/* =========================
-   حذف فاتورة
-========================= */
-
-async function deleteInvoice(id) {
-  if (!confirm('حذف هذه الفاتورة من قاعدة البيانات؟')) return;
-
-  try {
-    await deleteInvoiceRemote(id);
-    db.invoices = db.invoices.filter(i => i.id !== id);
-    renderDashboard();
-  } catch (e) {
-    console.error(e);
-    alert(`تعذر حذف الفاتورة: ${e.message || 'خطأ غير معروف'}`);
-  }
-}
-
-/* =========================
-   تصدير البيانات
-========================= */
-
-function exportData() {
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'fitness-gym-data.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-$('logoutBtn')?.addEventListener('click', logoutAdmin);
-
-if ($('invoiceDate')) $('invoiceDate').value = today();
-if ($('debtDate')) $('debtDate').value = today();
-
-/* =========================
-   تشغيل لوحة التحكم
-========================= */
-
-async function boot() {
-  const admin = await requireAdmin();
-  if (!admin) return;
-
-  initDefaultButtonText();
-
-  try {
-    await loadDB();
-    renderDashboard();
-  } catch (e) {
-    console.error(e);
-    alert(`تعذر تحميل العملاء من قاعدة البيانات: ${e.message || 'تأكد من Supabase وRLS.'}`);
-  }
-}
-
-boot();
+})();
