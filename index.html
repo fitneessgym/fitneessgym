@@ -98,14 +98,15 @@
 
 
 <footer><div class="wrap foot"><span>© <span id="year"></span> FITNESS GYM</span><span id="footerText">القوة • الانضباط • الاستمرارية</span></div></footer>
+<!-- Supabase must load before any script that uses window.supabaseClient. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 <script src="site-config.js"></script>
 <script src="site-public.js"></script>
 <script src="script.js"></script>
 <script src="player-portal.js"></script>
 
 <!-- Supabase products + WhatsApp shopping -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
 <script>
 (function () {
   "use strict";

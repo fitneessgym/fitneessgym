@@ -233,6 +233,66 @@ using (exists (select 1 from public.admin_users a where a.user_id = (select auth
 with check (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())));
 grant select, insert, update, delete on public.customer_nutrition_profiles to authenticated;
 
+-- Save/update a player's nutrition profile through a protected admin-only RPC.
+-- This avoids client-side upsert/RLS edge cases and guarantees the calculated calories
+-- are persisted against the selected player.
+create or replace function public.save_player_nutrition(
+  p_customer_id text,
+  p_sex text,
+  p_age integer,
+  p_weight numeric,
+  p_height numeric,
+  p_body_type text,
+  p_goal text,
+  p_activity_level numeric,
+  p_bmr numeric,
+  p_tdee numeric,
+  p_target_calories numeric,
+  p_protein_g numeric,
+  p_carbs_g numeric,
+  p_fats_g numeric
+)
+returns public.customer_nutrition_profiles
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  result public.customer_nutrition_profiles;
+begin
+  if not exists (
+    select 1 from public.admin_users a
+    where a.user_id = (select auth.uid())
+  ) then
+    raise exception 'غير مصرح: يجب تسجيل الدخول بحساب إدارة النادي';
+  end if;
+
+  if not exists (select 1 from public.customers c where c.id = p_customer_id) then
+    raise exception 'اللاعب غير موجود';
+  end if;
+
+  insert into public.customer_nutrition_profiles (
+    customer_id, sex, age, weight, height, body_type, goal, activity_level,
+    bmr, tdee, target_calories, protein_g, carbs_g, fats_g, updated_at
+  ) values (
+    p_customer_id, p_sex, p_age, p_weight, p_height, p_body_type, p_goal, p_activity_level,
+    p_bmr, p_tdee, p_target_calories, p_protein_g, p_carbs_g, p_fats_g, now()
+  )
+  on conflict (customer_id) do update set
+    sex = excluded.sex, age = excluded.age, weight = excluded.weight, height = excluded.height,
+    body_type = excluded.body_type, goal = excluded.goal, activity_level = excluded.activity_level,
+    bmr = excluded.bmr, tdee = excluded.tdee, target_calories = excluded.target_calories,
+    protein_g = excluded.protein_g, carbs_g = excluded.carbs_g, fats_g = excluded.fats_g,
+    updated_at = now()
+  returning * into result;
+
+  return result;
+end;
+$$;
+
+revoke all on function public.save_player_nutrition(text,text,integer,numeric,numeric,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric) from public;
+grant execute on function public.save_player_nutrition(text,text,integer,numeric,numeric,text,text,numeric,numeric,numeric,numeric,numeric,numeric,numeric) to authenticated;
+
 -- Player workout tracking
 alter table public.customers add column if not exists first_name text;
 alter table public.customers add column if not exists second_name text;

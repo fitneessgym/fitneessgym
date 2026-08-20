@@ -1,6 +1,5 @@
 (() => {
   "use strict";
-  const supabase = window.supabaseClient;
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
   const money = v => `₪${Number(v||0).toLocaleString('en-US')}`;
@@ -34,7 +33,8 @@
   form?.addEventListener('submit',async e=>{
     e.preventDefault();
     const phone=$('playerPhone').value.trim(), pin=$('playerPin').value.trim(), msg=$('playerLoginMsg');
-    if(!supabase){msg.textContent='تعذر الاتصال بقاعدة البيانات.';return;}
+    const supabase = window.supabaseClient;
+    if(!supabase){msg.textContent='تعذر تحميل الاتصال بقاعدة البيانات. أعد تحميل الصفحة وحاول مرة أخرى.';return;}
     msg.textContent='جاري التحقق...';
     try{
       const {data,error}=await supabase.rpc('player_login',{p_phone:phone,p_pin:pin});

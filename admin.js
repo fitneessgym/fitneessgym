@@ -135,10 +135,15 @@
     const bmr=10*weight+6.25*height-5*age+(sex==='male'?5:-161); const tdee=bmr*activity; let target=tdee;
     if(goal==='build') target=tdee+250; else if(goal==='cut') target=tdee*0.8; else if(goal==='cardio') target=tdee*0.95;
     const protein=Math.max(1.6*weight,0), fats=Math.max(0.7*weight,0), carbs=Math.max((target-protein*4-fats*9)/4,0);
-    const payload={customer_id:customerId,sex,age,weight,height,body_type:bodyType,goal,activity_level:activity,bmr,tdee,target_calories:target,protein_g:protein,carbs_g:carbs,fats_g:fats,updated_at:new Date().toISOString()};
-    const {error}=await supabase.from('customer_nutrition_profiles').upsert(payload,{onConflict:'customer_id'});
+    const payload={customer_id:customerId,sex,age,weight,height,body_type:bodyType,goal,activity_level:activity,bmr,tdee,target_calories:target,protein_g:protein,carbs_g:carbs,fats_g:fats};
+    // Save through a protected RPC so RLS/upsert schema-cache differences cannot block the nutrition profile.
+    const {error}=await supabase.rpc('save_player_nutrition',{
+      p_customer_id:customerId, p_sex:sex, p_age:age, p_weight:weight, p_height:height,
+      p_body_type:bodyType, p_goal:goal, p_activity_level:activity, p_bmr:bmr, p_tdee:tdee,
+      p_target_calories:target, p_protein_g:protein, p_carbs_g:carbs, p_fats_g:fats
+    });
     if(error)return alert('تعذر حفظ ملف السعرات:\n\n'+(error.message||error.details||''));
-    await refresh(); $('nutritionCustomer').value=customerId; alert('تم حساب وحفظ السعرات للاعب.');
+    await refresh(); $('nutritionCustomer').value=customerId; alert('تم حساب وحفظ السعرات للاعب بنجاح.');
   });
 
   async function refresh(){try{await loadData();render();}catch(e){console.error(e);alert('تعذر تحميل بيانات الإدارة:\\n\\n'+(e.message||e.details||'خطأ غير معروف'));}}
