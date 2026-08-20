@@ -13,11 +13,6 @@
   const pid=()=>`PAY-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
   const fullName=c=>[c?.first_name,c?.second_name,c?.last_name].filter(Boolean).join(' ') || c?.name || '—';
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-  async function sha256Hex(value){
-    const data=new TextEncoder().encode(String(value||''));
-    const hash=await crypto.subtle.digest('SHA-256',data);
-    return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  }
   const waNumber=v=>{let d=String(v||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d='970'+d.slice(1);return d;};
   const waLink=(phone,text)=>'https://wa.me/'+waNumber(phone)+'?text='+encodeURIComponent(text);
   const invoiceMessage=(i,c)=>['فاتورة FITNESS GYM 🧾','', 'رقم الفاتورة: '+i.id,'العميل: '+(c?.name||'—'),'النوع: '+(i.type||'—'),'المبلغ: '+money(i.amount),'التاريخ: '+(i.date||'—'), i.note ? 'الوصف: '+i.note : '', '', 'شكرًا لتعاملكم مع FITNESS GYM 💪'].filter(Boolean).join('\n');
@@ -109,8 +104,7 @@
     const pin=prompt('أدخل PIN جديد للاعب '+fullName(c)+' (4 إلى 12 رقمًا):','');
     if(pin===null)return;
     if(!/^\d{4,12}$/.test(pin.trim()))return alert('الـPIN يجب أن يكون من 4 إلى 12 رقمًا.');
-    const hash=await sha256Hex(pin.trim());
-    const {error}=await supabase.from('customers').update({player_pin_hash:hash}).eq('id',id);
+    const {error}=await supabase.rpc('set_player_pin',{p_customer_id:id,p_pin:pin.trim()});
     if(error)return alert('تعذر حفظ PIN اللاعب:\n\n'+(error.message||error.details||''));
     alert('تم تحديث PIN اللاعب. أعطه للاعب ليستخدمه مع رقم هاتفه.');
     await refresh();
@@ -157,10 +151,14 @@
     if(!first||!second||!last||!phone)return alert('أدخل الاسم الأول والثاني والأخير ورقم الهاتف.');
     if(paid>total)return alert('المبلغ المدفوع لا يمكن أن يكون أكبر من الإجمالي.');
     if(customers.some(c=>fullName(c).trim().toLocaleLowerCase()===name.toLocaleLowerCase()))return alert('يوجد لاعب آخر بنفس الاسم.');
-    const pin=$('customerPin').value.trim(); if(!/^\d{4,12}$/.test(pin))return alert('PIN اللاعب يجب أن يكون من 4 إلى 12 رقمًا.'); const player_pin_hash=await sha256Hex(pin); const payload={id:cid(),name,first_name:first,second_name:second,last_name:last,phone,plan:$('customerPlan').value,total,paid,start:$('customerStart').value||null,end:$('customerEnd').value||null,player_pin_hash};
+    const pin=$('customerPin').value.trim(); if(!/^\d{4,12}$/.test(pin))return alert('PIN اللاعب يجب أن يكون من 4 إلى 12 رقمًا.');
+    const customerId=cid();
+    const payload={id:customerId,name,first_name:first,second_name:second,last_name:last,phone,plan:$('customerPlan').value,total,paid,start:$('customerStart').value||null,end:$('customerEnd').value||null};
     const {error}=await supabase.from('customers').insert(payload);
-    if(error)return alert('تعذر حفظ العميل:\\n\\n'+(error.message||error.details||''));
-    e.target.reset();await refresh();alert('تم حفظ العميل بنجاح.');
+    if(error)return alert('تعذر حفظ العميل:\n\n'+(error.message||error.details||''));
+    const {error:pinError}=await supabase.rpc('set_player_pin',{p_customer_id:customerId,p_pin:pin});
+    if(pinError){await supabase.from('customers').delete().eq('id',customerId);return alert('تم إلغاء حفظ العميل لأن PIN لم يُحفظ:\n\n'+(pinError.message||pinError.details||''));}
+    e.target.reset();await refresh();alert('تم حفظ العميل وPIN بنجاح.');
   });
 
   $('workoutLogForm')?.addEventListener('submit',async e=>{

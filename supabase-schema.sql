@@ -305,6 +305,54 @@ using (
 create extension if not exists pgcrypto;
 alter table public.customers add column if not exists player_pin_hash text;
 
+-- Rate-limit failed player logins by normalized phone. This table is intentionally
+-- not exposed through the browser Data API; only the SECURITY DEFINER RPC can touch it.
+create table if not exists public.player_login_attempts (
+  phone_key text primary key,
+  failed_attempts integer not null default 0 check (failed_attempts >= 0),
+  first_failed_at timestamptz not null default now(),
+  locked_until timestamptz,
+  updated_at timestamptz not null default now()
+);
+alter table public.player_login_attempts enable row level security;
+revoke all on public.player_login_attempts from public, anon, authenticated;
+
+create index if not exists customers_player_phone_lookup_idx
+  on public.customers (phone);
+create index if not exists workout_logs_customer_date_idx
+  on public.workout_logs (customer_id, workout_date, created_at);
+create index if not exists nutrition_customer_idx
+  on public.customer_nutrition_profiles (customer_id);
+
+-- Admin-only RPC for setting a player's PIN. The browser never writes player_pin_hash directly.
+create or replace function public.set_player_pin(p_customer_id text, p_pin text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if auth.uid() is null or not exists (
+    select 1 from public.admin_users a where a.user_id = auth.uid()
+  ) then
+    raise exception 'NOT_AUTHORIZED';
+  end if;
+  if p_customer_id is null or trim(p_customer_id) = '' or p_pin !~ '^[0-9]{4,12}$' then
+    raise exception 'INVALID_PLAYER_PIN';
+  end if;
+  update public.customers
+  set player_pin_hash = crypt(trim(p_pin), gen_salt('bf', 12)),
+      updated_at = now()
+  where id = p_customer_id;
+  if not found then
+    raise exception 'CUSTOMER_NOT_FOUND';
+  end if;
+end;
+$$;
+
+revoke all on function public.set_player_pin(text,text) from public;
+grant execute on function public.set_player_pin(text,text) to authenticated;
+
 create or replace function public.player_login(p_phone text, p_pin text)
 returns jsonb
 language plpgsql
@@ -314,28 +362,113 @@ as $$
 declare
   c public.customers%rowtype;
   normalized_phone text;
+  v_phone_key text;
+  pin_value text;
+  attempt public.player_login_attempts%rowtype;
+  is_valid boolean := false;
 begin
   normalized_phone := regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g');
+  pin_value := trim(coalesce(p_pin,''));
+  v_phone_key := encode(digest(normalized_phone, 'sha256'), 'hex');
+
+  -- Reject obviously malformed credentials before touching customer records.
+  if length(normalized_phone) < 7 or length(normalized_phone) > 15
+     or pin_value !~ '^[0-9]{4,12}$' then
+    raise exception 'INVALID_PLAYER_LOGIN';
+  end if;
+
+  select * into attempt
+  from public.player_login_attempts
+  where phone_key = v_phone_key;
+
+  -- Five failed attempts within 15 minutes locks this phone for 15 minutes.
+  if found and attempt.locked_until is not null and attempt.locked_until > now() then
+    raise exception 'TOO_MANY_PLAYER_LOGIN_ATTEMPTS';
+  end if;
+
   select * into c
   from public.customers
   where regexp_replace(coalesce(phone,''), '[^0-9]', '', 'g') = normalized_phone
-    and player_pin_hash = encode(digest(trim(coalesce(p_pin,'')), 'sha256'), 'hex')
+    and (
+      -- New format: bcrypt via pgcrypto.
+      (player_pin_hash like '$2%' and player_pin_hash = crypt(pin_value, player_pin_hash))
+      -- Backward compatibility: existing SHA-256 hashes are upgraded after a successful login.
+      or (length(player_pin_hash) = 64 and player_pin_hash = encode(digest(pin_value, 'sha256'), 'hex'))
+    )
   order by created_at desc
   limit 1;
 
   if not found then
+    if attempt.phone_key is null then
+      insert into public.player_login_attempts(phone_key, failed_attempts, first_failed_at, locked_until, updated_at)
+      values (v_phone_key, 1, now(), null, now());
+    elsif attempt.first_failed_at < now() - interval '15 minutes' then
+      update public.player_login_attempts
+      set failed_attempts = 1,
+          first_failed_at = now(),
+          locked_until = null,
+          updated_at = now()
+      where phone_key = v_phone_key;
+    else
+      update public.player_login_attempts
+      set failed_attempts = failed_attempts + 1,
+          locked_until = case when failed_attempts + 1 >= 5 then now() + interval '15 minutes' else null end,
+          updated_at = now()
+      where phone_key = v_phone_key;
+    end if;
+
     raise exception 'INVALID_PLAYER_LOGIN';
   end if;
 
+  -- Upgrade legacy SHA-256 PINs to salted bcrypt on the first successful login.
+  if length(c.player_pin_hash) = 64 then
+    update public.customers
+    set player_pin_hash = crypt(pin_value, gen_salt('bf', 12)),
+        updated_at = now()
+    where id = c.id;
+    c.player_pin_hash := null;
+  end if;
+
+  delete from public.player_login_attempts where phone_key = v_phone_key;
+
+  -- Return only the fields the player portal actually needs.
   return jsonb_build_object(
-    'customer', to_jsonb(c) - 'player_pin_hash',
+    'customer', jsonb_build_object(
+      'first_name', c.first_name,
+      'second_name', c.second_name,
+      'last_name', c.last_name,
+      'name', c.name,
+      'phone', c.phone,
+      'plan', c.plan,
+      'start', c.start,
+      'end', c."end"
+    ),
     'workouts', coalesce((
-      select jsonb_agg(to_jsonb(w) order by w.workout_date asc, w.created_at asc)
+      select jsonb_agg(
+        jsonb_build_object(
+          'workout_title', w.workout_title,
+          'workout_day', w.workout_day,
+          'workout_date', w.workout_date,
+          'sets_completed', w.sets_completed,
+          'reps', w.reps,
+          'weight', w.weight,
+          'duration', w.duration,
+          'notes', w.notes
+        ) order by w.workout_date asc, w.created_at asc
+      )
       from public.workout_logs w
       where w.customer_id = c.id
     ), '[]'::jsonb),
     'nutrition', (
-      select to_jsonb(n)
+      select jsonb_build_object(
+        'bmr', n.bmr,
+        'tdee', n.tdee,
+        'target_calories', n.target_calories,
+        'protein_g', n.protein_g,
+        'carbs_g', n.carbs_g,
+        'fats_g', n.fats_g,
+        'goal', n.goal
+      )
       from public.customer_nutrition_profiles n
       where n.customer_id = c.id
       limit 1
@@ -346,3 +479,6 @@ $$;
 
 revoke all on function public.player_login(text,text) from public;
 grant execute on function public.player_login(text,text) to anon, authenticated;
+
+-- Refresh PostgREST schema cache after this migration.
+notify pgrst, 'reload schema';

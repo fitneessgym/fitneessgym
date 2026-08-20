@@ -42,7 +42,13 @@
       if(!data?.customer)throw new Error('INVALID_LOGIN');
       sessionStorage.setItem('fitness_player_session','1');
       render(data); msg.textContent=''; form.reset();
-    }catch(err){console.error(err);msg.textContent='بيانات الدخول غير صحيحة أو لم يتم تفعيل حساب اللاعب بعد.';}
+    }catch(err){
+      console.error(err);
+      const message=String(err?.message||'');
+      msg.textContent=message.includes('TOO_MANY_PLAYER_LOGIN_ATTEMPTS')
+        ? 'تم إيقاف محاولات الدخول مؤقتًا بسبب كثرة المحاولات. حاول مرة أخرى بعد 15 دقيقة.'
+        : 'بيانات الدخول غير صحيحة أو لم يتم تفعيل حساب اللاعب بعد.';
+    }
   });
   $('playerLogout')?.addEventListener('click',()=>{player=null;sessionStorage.removeItem('fitness_player_session');dash.hidden=true;loginBox.hidden=false;$('playerLoginMsg').textContent='تم تسجيل الخروج.';});
 })();

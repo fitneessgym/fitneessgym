@@ -12,7 +12,8 @@ async function verifyAdminSession(){
 }
 
 function protectAdminPage(){
-  if(!isAdminLoggedIn()){ window.location.replace('admin-login.html'); return false; }
+  // This is only a fast client-side guard. Real authorization is enforced by
+  // Supabase Auth + RLS and verifyAdminSession() below.
   return true;
 }
 
@@ -28,7 +29,10 @@ async function initAdminAuth(){
   if(!ok){
     sessionStorage.removeItem(ADMIN_SESSION);
     if(document.body?.classList.contains('admin-page') && !document.getElementById('loginForm')) window.location.replace('admin-login.html');
+    return false;
   }
+  sessionStorage.setItem(ADMIN_SESSION,'1');
+  return true;
 }
 
 const PASSWORD_RESET_URL = 'https://fitneessgym.github.io/reset-password.html';
