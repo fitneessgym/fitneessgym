@@ -36,28 +36,28 @@ function renderWorkouts(s){
  };
  if(!list)return;
  const imageMap={
-   'Bench Press':'assets/workouts/02-chest-press-pec-fly.webp',
-   'Incline Dumbbell Press':'assets/workouts/02-chest-press-pec-fly.webp',
-   'Cable Crossover':'assets/workouts/08-cable-machine-bench.webp',
-   'Lat Pulldown':'assets/workouts/01-lat-pulldown-seated-row.webp',
-   'Seated Row':'assets/workouts/01-lat-pulldown-seated-row.webp',
-   'Shoulder Press':'assets/workouts/06-shoulder-press-lateral-raise.webp',
-   'Lateral Raise':'assets/workouts/06-shoulder-press-lateral-raise.webp',
-   'Dumbbell Curl':'assets/workouts/07-bicep-curl-tricep-extension.webp',
-   'Cable Pushdown':'assets/workouts/07-bicep-curl-tricep-extension.webp',
-   'Leg Press':'assets/workouts/03-leg-press.webp',
-   'Squat':'assets/workouts/03-leg-press.webp',
-   'Leg Curl':'assets/workouts/04-leg-extension-curl.webp',
-   'Calf Raise':'assets/workouts/03-leg-press.webp',
-   'Cable Crunch':'assets/workouts/08-cable-machine-bench.webp',
-   'Adductor / Abductor':'assets/workouts/05-adductor-abductor.webp',
-   'Adductor/Abductor':'assets/workouts/05-adductor-abductor.webp',
-   'Lat Pulldown / Seated Row':'assets/workouts/01-lat-pulldown-seated-row.webp',
-   'Chest Press / Pec Fly':'assets/workouts/02-chest-press-pec-fly.webp',
-   'Leg Extension / Leg Curl':'assets/workouts/04-leg-extension-curl.webp',
-   'Shoulder Press / Lateral Raise':'assets/workouts/06-shoulder-press-lateral-raise.webp',
-   'Bicep Curl / Tricep Extension':'assets/workouts/07-bicep-curl-tricep-extension.webp',
-   'Cable Machine + Bench':'assets/workouts/08-cable-machine-bench.webp'
+   'Bench Press':'/assets/workouts/02-chest-press-pec-fly.webp',
+   'Incline Dumbbell Press':'/assets/workouts/02-chest-press-pec-fly.webp',
+   'Cable Crossover':'/assets/workouts/08-cable-machine-bench.webp',
+   'Lat Pulldown':'/assets/workouts/01-lat-pulldown-seated-row.webp',
+   'Seated Row':'/assets/workouts/01-lat-pulldown-seated-row.webp',
+   'Shoulder Press':'/assets/workouts/06-shoulder-press-lateral-raise.webp',
+   'Lateral Raise':'/assets/workouts/06-shoulder-press-lateral-raise.webp',
+   'Dumbbell Curl':'/assets/workouts/07-bicep-curl-tricep-extension.webp',
+   'Cable Pushdown':'/assets/workouts/07-bicep-curl-tricep-extension.webp',
+   'Leg Press':'/assets/workouts/03-leg-press.webp',
+   'Squat':'/assets/workouts/03-leg-press.webp',
+   'Leg Curl':'/assets/workouts/04-leg-extension-curl.webp',
+   'Calf Raise':'/assets/workouts/03-leg-press.webp',
+   'Cable Crunch':'/assets/workouts/08-cable-machine-bench.webp',
+   'Adductor / Abductor':'/assets/workouts/05-adductor-abductor.webp',
+   'Adductor/Abductor':'/assets/workouts/05-adductor-abductor.webp',
+   'Lat Pulldown / Seated Row':'/assets/workouts/01-lat-pulldown-seated-row.webp',
+   'Chest Press / Pec Fly':'/assets/workouts/02-chest-press-pec-fly.webp',
+   'Leg Extension / Leg Curl':'/assets/workouts/04-leg-extension-curl.webp',
+   'Shoulder Press / Lateral Raise':'/assets/workouts/06-shoulder-press-lateral-raise.webp',
+   'Bicep Curl / Tricep Extension':'/assets/workouts/07-bicep-curl-tricep-extension.webp',
+   'Cable Machine + Bench':'/assets/workouts/08-cable-machine-bench.webp'
  };
  const workouts=Array.isArray(s.workouts)?s.workouts.map(x=>{
    const title=String(x.title||'').trim();
@@ -120,11 +120,11 @@ function renderSite(s){
  const gal=document.getElementById('galleryList');
  if(gal) gal.innerHTML=(s.gallery||[]).map((x,i)=>{
    const defaults=[
-     'assets/gallery/gallery-1.webp',
-     'assets/gallery/gallery-2.webp',
-     'assets/gallery/gallery-3.webp',
-     'assets/gallery/gallery-4.webp',
-     'assets/gallery/gallery-5.webp'
+     '/assets/gallery/gallery-1.webp',
+     '/assets/gallery/gallery-2.webp',
+     '/assets/gallery/gallery-3.webp',
+     '/assets/gallery/gallery-4.webp',
+     '/assets/gallery/gallery-5.webp'
    ];
    const item=typeof x==='string'?{text:x,image:defaults[i%defaults.length]}:{...x};
    item.image=publicMediaUrl(item.image);
