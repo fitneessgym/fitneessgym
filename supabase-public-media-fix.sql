@@ -1,5 +1,6 @@
 -- FITNESS GYM: make public website media visible to every visitor
 -- Run this file ONCE in Supabase SQL Editor for the connected project.
+-- IMPORTANT: this is required for visitors to read products/site settings/media when RLS is enabled.
 -- It does not grant public write/update/delete access.
 
 -- 1) Public storage bucket for gallery/product media.

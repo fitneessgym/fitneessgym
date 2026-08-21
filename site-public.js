@@ -36,22 +36,22 @@ function renderWorkouts(s){
  };
  if(!list)return;
  const imageMap={
-   'Bench Press':'assets/workouts/02-chest-press-pec-fly.png',
-   'Incline Dumbbell Press':'assets/workouts/02-chest-press-pec-fly.png',
-   'Cable Crossover':'assets/workouts/08-cable-machine-bench.png',
-   'Lat Pulldown':'assets/workouts/01-lat-pulldown-seated-row.png',
-   'Seated Row':'assets/workouts/01-lat-pulldown-seated-row.png',
-   'Shoulder Press':'assets/workouts/06-shoulder-press-lateral-raise.png',
-   'Lateral Raise':'assets/workouts/06-shoulder-press-lateral-raise.png',
-   'Dumbbell Curl':'assets/workouts/07-bicep-curl-tricep-extension.png',
-   'Cable Pushdown':'assets/workouts/07-bicep-curl-tricep-extension.png',
-   'Leg Press':'assets/workouts/03-leg-press.png',
-   'Squat':'assets/workouts/03-leg-press.png',
-   'Leg Curl':'assets/workouts/04-leg-extension-curl.png',
-   'Calf Raise':'assets/workouts/03-leg-press.png',
-   'Cable Crunch':'assets/workouts/08-cable-machine-bench.png',
-   'Adductor / Abductor':'assets/workouts/05-adductor-abductor.png',
-   'Adductor/Abductor':'assets/workouts/05-adductor-abductor.png'
+   'Bench Press':'assets/workouts/02-chest-press-pec-fly.webp',
+   'Incline Dumbbell Press':'assets/workouts/02-chest-press-pec-fly.webp',
+   'Cable Crossover':'assets/workouts/08-cable-machine-bench.webp',
+   'Lat Pulldown':'assets/workouts/01-lat-pulldown-seated-row.webp',
+   'Seated Row':'assets/workouts/01-lat-pulldown-seated-row.webp',
+   'Shoulder Press':'assets/workouts/06-shoulder-press-lateral-raise.webp',
+   'Lateral Raise':'assets/workouts/06-shoulder-press-lateral-raise.webp',
+   'Dumbbell Curl':'assets/workouts/07-bicep-curl-tricep-extension.webp',
+   'Cable Pushdown':'assets/workouts/07-bicep-curl-tricep-extension.webp',
+   'Leg Press':'assets/workouts/03-leg-press.webp',
+   'Squat':'assets/workouts/03-leg-press.webp',
+   'Leg Curl':'assets/workouts/04-leg-extension-curl.webp',
+   'Calf Raise':'assets/workouts/03-leg-press.webp',
+   'Cable Crunch':'assets/workouts/08-cable-machine-bench.webp',
+   'Adductor / Abductor':'assets/workouts/05-adductor-abductor.webp',
+   'Adductor/Abductor':'assets/workouts/05-adductor-abductor.webp'
  };
  const workouts=Array.isArray(s.workouts)?s.workouts.map(x=>({...x,image:imageMap[x.title]||publicMediaUrl(x.image)})):[];
  if(!workouts.some(x=>x.title==='Adductor / Abductor')){
@@ -65,7 +65,7 @@ function renderWorkouts(s){
    const visible=active==='الكل'?workouts:workouts.filter(x=>x.day===active);
    list.innerHTML=visible.map((x)=>{
      const src=x.image||fallbackImages[x.title];
-     const img=src?`<img src="${esc(src)}" alt="${esc(x.title)}" loading="lazy" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.parentElement.classList.add('image-failed')}" data-fallback="${esc(fallbackImages[x.title]||'')}">`:`<div class="workout-placeholder">🏋️</div>`;
+     const img=src?`<img src="${esc(src)}" alt="${esc(x.title)}" loading="lazy" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.parentElement.classList.add('image-failed')}" data-fallback="${esc(fallbackImages[x.title]||'')}">`:`<div class="workout-placeholder">🏋️</div>`;
      return `<article class="workout-card"><div class="workout-media">${img}<span class="workout-goal">${esc(x.goal||'عام')}</span></div><div class="workout-body"><span class="workout-day">${esc(x.day||'تمرين')}</span><h3>${esc(x.title||'تمرين')}</h3><p><b>العضلة:</b> ${esc(x.muscle||'—')}<br><b>الجهاز:</b> ${esc(x.equipment||'—')}</p><div class="workout-meta"><span>🔁 ${esc(x.sets||'—')} × ${esc(x.reps||'—')}</span><span>⏱ ${esc(x.rest||'—')}</span></div></div></article>`;
    }).join('') || '<p class="note">لا توجد تدريبات في هذه الفئة.</p>';
    filters?.querySelectorAll('[data-wfilter]').forEach(b=>b.addEventListener('click',()=>{active=b.dataset.wfilter;draw();}));
@@ -77,6 +77,8 @@ function setupCalorieCalculator(s){
  const result=document.getElementById('calorieResult');
  const title=document.getElementById('calorieTitle'); const note=document.getElementById('calorieNote');
  if(title&&s.calorieTitle)title.textContent=s.calorieTitle;if(note&&s.calorieNote)note.textContent=s.calorieNote;
+ if(form.dataset.calReady==='1') return;
+ form.dataset.calReady='1';
  form.addEventListener('submit',e=>{
    e.preventDefault();
    const sex=document.getElementById('calSex').value, age=Number(document.getElementById('calAge').value), weight=Number(document.getElementById('calWeight').value), height=Number(document.getElementById('calHeight').value), activity=Number(document.getElementById('calActivity').value), body=document.getElementById('calBody').value, goal=document.getElementById('calGoal').value;
@@ -94,8 +96,7 @@ function setupCalorieCalculator(s){
 }
 
 function escSite(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
-async function applySite(){
- const s=await loadSiteRemote();
+function renderSite(s){
  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
  set('brandText',s.brand); set('heroTag',s.tag); set('heroTitle',s.heroTitle); set('heroAccent',s.heroAccent); set('heroText',s.heroText);
  const stats=document.getElementById('heroStats'); if(stats) stats.innerHTML=(s.stats||[]).map(x=>`<div><b>${escSite(x[0])}</b><small>${escSite(x[1])}</small></div>`).join('');
@@ -120,9 +121,17 @@ async function applySite(){
    if(!item.image) return `<div>${escSite(item.text||'')}</div>`;
    const type=item.mediaType||(/^(data:video\/)|\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(item.image)?'video':(/^(data:image\/gif)|\.gif(\?|$)/i.test(item.image)?'gif':'image'));
    if(type==='video') return `<div class="gallery-image gallery-video"><video src="${escSite(item.image)}" autoplay muted loop playsinline controls preload="metadata"></video><span class="gallery-caption">${escSite(item.text||'')}</span></div>`;
-   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}" loading="lazy" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
+   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}" loading="lazy" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
  }).join('');
  set('contactTag',s.contactTag);set('contactTitle',s.contactTitle);set('contactText',s.contactText);set('phone',s.phone);set('whatsapp',s.whatsapp);set('address',s.address);set('hours',s.hours);set('footerText',s.footer);
  const wa=document.getElementById('whatsappLink');if(wa)wa.href='https://wa.me/'+String(s.whatsapp||'').replace(/\D/g,'');
+}
+
+async function applySite(){
+  // Paint cached/default content immediately; never block the page on Supabase.
+  const local=loadSiteLocal();
+  renderSite(local);
+  const remote=await fetchSiteRemote();
+  if(remote) renderSite(remote);
 }
 document.addEventListener('DOMContentLoaded',()=>applySite().catch(e=>console.error(e)));

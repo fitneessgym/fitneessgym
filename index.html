@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FITNESS GYM | ناديك يبدأ من هنا</title>
+<link rel="preconnect" href="https://kssrhadgbhtzwukrzvse.supabase.co">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -107,8 +109,8 @@
 <!-- Supabase must load before any script that uses window.supabaseClient. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
-<script src="site-config.js"></script>
-<script src="site-public.js"></script>
+<script src="site-config.js?v=3"></script>
+<script src="site-public.js?v=3"></script>
 <script src="script.js"></script>
 <script src="player-portal.js?v=12"></script>
 
@@ -160,17 +162,12 @@
     window.open("https://wa.me/" + waNumber(business) + "?text=" + encodeURIComponent(msg), "_blank");
   };
 
-  async function loadBusinessWhatsApp() {
-    try {
-      if (typeof loadSiteRemote === "function") {
-        const site = await loadSiteRemote();
-        window.FITNESS_GYM_WHATSAPP = site.whatsapp || "+972 54-670-0672";
-      } else {
-        window.FITNESS_GYM_WHATSAPP = document.getElementById("whatsapp")?.textContent || "+972 54-670-0672";
-      }
-    } catch (_) {
-      window.FITNESS_GYM_WHATSAPP = "+972 54-670-0672";
-    }
+  function loadBusinessWhatsApp() {
+    // Never block product rendering on site settings.
+    window.FITNESS_GYM_WHATSAPP =
+      window.FITNESS_GYM_WHATSAPP ||
+      document.getElementById("whatsapp")?.textContent ||
+      "+972 54-670-0672";
   }
 
   async function loadStoreProducts() {
@@ -179,12 +176,16 @@
     container.innerHTML = '<p class="note">جاري تحميل المنتجات...</p>';
 
     try {
-      await loadBusinessWhatsApp();
-      const { data, error } = await window.supabaseClient
+      loadBusinessWhatsApp();
+      const request = window.supabaseClient
         .from("products")
         .select("*")
         .eq("active", true)
         .order("name", { ascending: true });
+      const timeout = new Promise((resolve) =>
+        setTimeout(() => resolve({ data: null, error: new Error("products timeout") }), 7000)
+      );
+      const { data, error } = await Promise.race([request, timeout]);
       if (error) throw error;
 
       if (!data || !data.length) {
@@ -195,7 +196,7 @@
       container.innerHTML = data.map(function (p) {
         const imageUrl = publicProductImage(p.image_url || p.image);
         const image = imageUrl
-          ? '<img src="' + esc(imageUrl) + '" alt="' + esc(p.name) + '" loading="lazy" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
+          ? '<img src="' + esc(imageUrl) + '" alt="' + esc(p.name) + '" loading="lazy" decoding="async" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
           : '<div class="product-placeholder">🏋️</div>';
         const stock = Number(p.stock || 0);
         const buy = stock > 0

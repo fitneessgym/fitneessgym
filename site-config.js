@@ -50,19 +50,26 @@ function cloneDefault(){return JSON.parse(JSON.stringify(DEFAULT_SITE));}
 function loadSiteLocal(){try{return {...cloneDefault(),...(JSON.parse(localStorage.getItem(SITE_KEY)||'{}'))}}catch(e){return cloneDefault()}}
 function saveSiteLocal(site){localStorage.setItem(SITE_KEY,JSON.stringify(site));}
 
-async function loadSiteRemote(){
-  const fallback=loadSiteLocal();
+async function fetchSiteRemote(){
   try{
-    if(!window.supabaseClient) return fallback;
-    const {data,error}=await window.supabaseClient.from('site_settings').select('data').eq('id',1).maybeSingle();
-    if(error || !data?.data) return fallback;
-    const remote={...cloneDefault(),...data.data};
+    if(!window.supabaseClient) return null;
+    const request=window.supabaseClient.from('site_settings').select('data').eq('id',1).maybeSingle();
+    const timeout=new Promise(resolve=>setTimeout(()=>resolve({data:null,error:new Error('site_settings timeout')}),2500));
+    const result=await Promise.race([request,timeout]);
+    if(result?.error || !result?.data?.data) return null;
+    const remote={...cloneDefault(),...result.data.data};
     saveSiteLocal(remote);
     return remote;
   }catch(e){
     console.warn('Remote site settings unavailable:',e);
-    return fallback;
+    return null;
   }
+}
+
+async function loadSiteRemote(){
+  const local=loadSiteLocal();
+  const remote=await fetchSiteRemote();
+  return remote || local;
 }
 
 async function saveSite(site){
