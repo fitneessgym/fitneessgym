@@ -51,9 +51,19 @@ function renderWorkouts(s){
    'Calf Raise':'assets/workouts/03-leg-press.webp',
    'Cable Crunch':'assets/workouts/08-cable-machine-bench.webp',
    'Adductor / Abductor':'assets/workouts/05-adductor-abductor.webp',
-   'Adductor/Abductor':'assets/workouts/05-adductor-abductor.webp'
+   'Adductor/Abductor':'assets/workouts/05-adductor-abductor.webp',
+   'Lat Pulldown / Seated Row':'assets/workouts/01-lat-pulldown-seated-row.webp',
+   'Chest Press / Pec Fly':'assets/workouts/02-chest-press-pec-fly.webp',
+   'Leg Extension / Leg Curl':'assets/workouts/04-leg-extension-curl.webp',
+   'Shoulder Press / Lateral Raise':'assets/workouts/06-shoulder-press-lateral-raise.webp',
+   'Bicep Curl / Tricep Extension':'assets/workouts/07-bicep-curl-tricep-extension.webp',
+   'Cable Machine + Bench':'assets/workouts/08-cable-machine-bench.webp'
  };
- const workouts=Array.isArray(s.workouts)?s.workouts.map(x=>({...x,image:imageMap[x.title]||publicMediaUrl(x.image)})):[];
+ const workouts=Array.isArray(s.workouts)?s.workouts.map(x=>{
+   const title=String(x.title||'').trim();
+   const normalized=title.replace(/^\d+\.\s*/, '').trim();
+   return {...x,image:imageMap[title]||imageMap[normalized]||publicMediaUrl(x.image)};
+ }):[];
  if(!workouts.some(x=>x.title==='Adductor / Abductor')){
    workouts.push({day:'أرجل',title:'Adductor / Abductor',muscle:'الفخذ الداخلي والخارجي',equipment:'Adductor / Abductor',sets:'3',reps:'12–15',rest:'60 ثانية',goal:'بناء',image:imageMap['Adductor / Abductor']});
  }
@@ -63,7 +73,7 @@ function renderWorkouts(s){
  const draw=()=>{
    if(filters) filters.innerHTML=cats.map(c=>`<button type="button" class="workout-filter ${c===active?'active':''}" data-wfilter="${esc(c)}">${esc(c)}</button>`).join('');
    const visible=active==='الكل'?workouts:workouts.filter(x=>x.day===active);
-   list.innerHTML=visible.map((x)=>{
+   list.innerHTML=visible.map((x,i)=>{
      const src=x.image||fallbackImages[x.title];
      const img=src?`<img src="${esc(src)}" alt="${esc(x.title)}" loading="${i<2?'eager':'lazy'}" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.parentElement.classList.add('image-failed')}" data-fallback="${esc(fallbackImages[x.title]||'')}">`:`<div class="workout-placeholder">🏋️</div>`;
      return `<article class="workout-card"><div class="workout-media">${img}<span class="workout-goal">${esc(x.goal||'عام')}</span></div><div class="workout-body"><span class="workout-day">${esc(x.day||'تمرين')}</span><h3>${esc(x.title||'تمرين')}</h3><p><b>العضلة:</b> ${esc(x.muscle||'—')}<br><b>الجهاز:</b> ${esc(x.equipment||'—')}</p><div class="workout-meta"><span>🔁 ${esc(x.sets||'—')} × ${esc(x.reps||'—')}</span><span>⏱ ${esc(x.rest||'—')}</span></div></div></article>`;
@@ -122,9 +132,7 @@ function renderSite(s){
    if(!item.image) return `<div>${escSite(item.text||'')}</div>`;
    const type=item.mediaType||(/^(data:video\/)|\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(item.image)?'video':(/^(data:image\/gif)|\.gif(\?|$)/i.test(item.image)?'gif':'image'));
    if(type==='video') return `<div class="gallery-image gallery-video"><video src="${escSite(item.image)}" autoplay muted loop playsinline controls preload="metadata"></video><span class="gallery-caption">${escSite(item.text||'')}</span></div>`;
-   const loading=i===0?'eager':'lazy';
-   const priority=i===0?' fetchpriority="high"':'';
-   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'FITNESS GYM')}" loading="${loading}" decoding="async"${priority} onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
+   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}" loading="lazy" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
  }).join('');
  set('contactTag',s.contactTag);set('contactTitle',s.contactTitle);set('contactText',s.contactText);set('phone',s.phone);set('whatsapp',s.whatsapp);set('address',s.address);set('hours',s.hours);set('footerText',s.footer);
  const wa=document.getElementById('whatsappLink');if(wa)wa.href='https://wa.me/'+String(s.whatsapp||'').replace(/\D/g,'');
