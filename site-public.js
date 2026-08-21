@@ -65,7 +65,7 @@ function renderWorkouts(s){
    const visible=active==='الكل'?workouts:workouts.filter(x=>x.day===active);
    list.innerHTML=visible.map((x)=>{
      const src=x.image||fallbackImages[x.title];
-     const img=src?`<img src="${esc(src)}" alt="${esc(x.title)}" loading="lazy" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.parentElement.classList.add('image-failed')}" data-fallback="${esc(fallbackImages[x.title]||'')}">`:`<div class="workout-placeholder">🏋️</div>`;
+     const img=src?`<img src="${esc(src)}" alt="${esc(x.title)}" loading="${i<2?'eager':'lazy'}" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.parentElement.classList.add('image-failed')}" data-fallback="${esc(fallbackImages[x.title]||'')}">`:`<div class="workout-placeholder">🏋️</div>`;
      return `<article class="workout-card"><div class="workout-media">${img}<span class="workout-goal">${esc(x.goal||'عام')}</span></div><div class="workout-body"><span class="workout-day">${esc(x.day||'تمرين')}</span><h3>${esc(x.title||'تمرين')}</h3><p><b>العضلة:</b> ${esc(x.muscle||'—')}<br><b>الجهاز:</b> ${esc(x.equipment||'—')}</p><div class="workout-meta"><span>🔁 ${esc(x.sets||'—')} × ${esc(x.reps||'—')}</span><span>⏱ ${esc(x.rest||'—')}</span></div></div></article>`;
    }).join('') || '<p class="note">لا توجد تدريبات في هذه الفئة.</p>';
    filters?.querySelectorAll('[data-wfilter]').forEach(b=>b.addEventListener('click',()=>{active=b.dataset.wfilter;draw();}));
@@ -128,10 +128,17 @@ function renderSite(s){
 }
 
 async function applySite(){
-  // Paint cached/default content immediately; never block the page on Supabase.
+  // Paint cached/default content immediately; remote data loads in the background.
   const local=loadSiteLocal();
   renderSite(local);
   const remote=await fetchSiteRemote();
-  if(remote) renderSite(remote);
+  if(remote){
+    // Never replace a locally cached real gallery with an empty/default gallery.
+    const merged={...local,...remote};
+    if(!Array.isArray(remote.gallery) || remote.gallery.length===0){
+      merged.gallery=Array.isArray(local.gallery)?local.gallery:merged.gallery;
+    }
+    renderSite(merged);
+  }
 }
 document.addEventListener('DOMContentLoaded',()=>applySite().catch(e=>console.error(e)));

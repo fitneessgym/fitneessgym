@@ -54,7 +54,7 @@ async function fetchSiteRemote(){
   try{
     if(!window.supabaseClient) return null;
     const request=window.supabaseClient.from('site_settings').select('data').eq('id',1).maybeSingle();
-    const timeout=new Promise(resolve=>setTimeout(()=>resolve({data:null,error:new Error('site_settings timeout')}),2500));
+    const timeout=new Promise(resolve=>setTimeout(()=>resolve({data:null,error:new Error('site_settings timeout')}),12000));
     const result=await Promise.race([request,timeout]);
     if(result?.error || !result?.data?.data) return null;
     const remote={...cloneDefault(),...result.data.data};
