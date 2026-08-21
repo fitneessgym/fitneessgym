@@ -110,10 +110,11 @@ function renderSite(s){
  const gal=document.getElementById('galleryList');
  if(gal) gal.innerHTML=(s.gallery||[]).map((x,i)=>{
    const defaults=[
-     'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=85',
-     'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1200&q=85',
-     'https://images.unsplash.com/photo-1583454110551-21f7a7f2c6f5?auto=format&fit=crop&w=1200&q=85',
-     'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=1200&q=85'
+     'assets/gallery/gallery-1.webp',
+     'assets/gallery/gallery-2.webp',
+     'assets/gallery/gallery-3.webp',
+     'assets/gallery/gallery-4.webp',
+     'assets/gallery/gallery-5.webp'
    ];
    const item=typeof x==='string'?{text:x,image:defaults[i%defaults.length]}:{...x};
    item.image=publicMediaUrl(item.image);
@@ -121,7 +122,9 @@ function renderSite(s){
    if(!item.image) return `<div>${escSite(item.text||'')}</div>`;
    const type=item.mediaType||(/^(data:video\/)|\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(item.image)?'video':(/^(data:image\/gif)|\.gif(\?|$)/i.test(item.image)?'gif':'image'));
    if(type==='video') return `<div class="gallery-image gallery-video"><video src="${escSite(item.image)}" autoplay muted loop playsinline controls preload="metadata"></video><span class="gallery-caption">${escSite(item.text||'')}</span></div>`;
-   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}" loading="lazy" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
+   const loading=i===0?'eager':'lazy';
+   const priority=i===0?' fetchpriority="high"':'';
+   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'FITNESS GYM')}" loading="${loading}" decoding="async"${priority} onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
  }).join('');
  set('contactTag',s.contactTag);set('contactTitle',s.contactTitle);set('contactText',s.contactText);set('phone',s.phone);set('whatsapp',s.whatsapp);set('address',s.address);set('hours',s.hours);set('footerText',s.footer);
  const wa=document.getElementById('whatsappLink');if(wa)wa.href='https://wa.me/'+String(s.whatsapp||'').replace(/\D/g,'');
