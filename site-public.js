@@ -1,8 +1,26 @@
 
+// Resolve assets from the directory where this JS file lives.
+// This works on GitHub Pages project sites AND when the browser is on /home.
+function fitnessGymRoot(){
+ try{
+   const tag=[...document.scripts].find(s=>/site-public(?:\.min)?\.js(?:\?|$)/i.test(s.src));
+   return tag ? new URL('./', tag.src).href : new URL('./', document.baseURI).href;
+ }catch(e){ return new URL('./', document.baseURI).href; }
+}
+function fitnessGymAssetUrl(value){
+ const raw=String(value??'').trim();
+ if(!raw) return '';
+ if(/^https?:\/\//i.test(raw) || /^(data:|blob:)/i.test(raw)) return raw;
+ if(/^\//.test(raw)) return new URL(raw.slice(1) + (raw.includes('?')?'&':'?') + 'v=20260821m', fitnessGymRoot()).href;
+ if(/^\.\/?/.test(raw)) return new URL(raw + (raw.includes('?')?'&':'?') + 'v=20260821m', fitnessGymRoot()).href;
+ if(/^assets\//i.test(raw)) return new URL(raw + (raw.includes('?')?'&':'?') + 'v=20260821m', fitnessGymRoot()).href;
+ return raw;
+}
 function publicMediaUrl(value){
  const raw=String(value??'').trim();
  if(!raw) return '';
- if(/^https?:\/\//i.test(raw) || /^(data:|blob:|\/|\.\.?\/)/i.test(raw)) return raw;
+ if(/^https?:\/\//i.test(raw) || /^(data:|blob:)/i.test(raw)) return raw;
+ if(/^\//.test(raw) || /^\.\/?/.test(raw) || /^assets\//i.test(raw)) return fitnessGymAssetUrl(raw);
  try{
    if(window.supabaseClient && typeof window.supabaseClient.storage?.from==='function'){
      const path=raw.replace(/^site-media[\/:]/i,'');
@@ -62,7 +80,7 @@ function renderWorkouts(s){
  const workouts=Array.isArray(s.workouts)?s.workouts.map(x=>{
    const title=String(x.title||'').trim();
    const normalized=title.replace(/^\d+\.\s*/, '').trim();
-   return {...x,image:imageMap[title]||imageMap[normalized]||publicMediaUrl(x.image)};
+   return {...x,image:fitnessGymAssetUrl(imageMap[title]||imageMap[normalized]||x.image)};
  }):[];
  if(!workouts.some(x=>x.title==='Adductor / Abductor')){
    workouts.push({day:'أرجل',title:'Adductor / Abductor',muscle:'الفخذ الداخلي والخارجي',equipment:'Adductor / Abductor',sets:'3',reps:'12–15',rest:'60 ثانية',goal:'بناء',image:imageMap['Adductor / Abductor']});
@@ -75,7 +93,7 @@ function renderWorkouts(s){
    const visible=active==='الكل'?workouts:workouts.filter(x=>x.day===active);
    list.innerHTML=visible.map((x,i)=>{
      const src=x.image||fallbackImages[x.title];
-     const img=src?`<img src="${esc(src)}" alt="${esc(x.title)}" loading="${i<2?'eager':'lazy'}" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.parentElement.classList.add('image-failed')}" data-fallback="${esc(fallbackImages[x.title]||'')}">`:`<div class="workout-placeholder">🏋️</div>`;
+     const img=src?`<img src="${esc(src)}" alt="${esc(x.title)}" loading="eager" fetchpriority="high" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.parentElement.classList.add('image-failed')}" data-fallback="${esc(fallbackImages[x.title]||'')}">`:`<div class="workout-placeholder">🏋️</div>`;
      return `<article class="workout-card"><div class="workout-media">${img}<span class="workout-goal">${esc(x.goal||'عام')}</span></div><div class="workout-body"><span class="workout-day">${esc(x.day||'تمرين')}</span><h3>${esc(x.title||'تمرين')}</h3><p><b>العضلة:</b> ${esc(x.muscle||'—')}<br><b>الجهاز:</b> ${esc(x.equipment||'—')}</p><div class="workout-meta"><span>🔁 ${esc(x.sets||'—')} × ${esc(x.reps||'—')}</span><span>⏱ ${esc(x.rest||'—')}</span></div></div></article>`;
    }).join('') || '<p class="note">لا توجد تدريبات في هذه الفئة.</p>';
    filters?.querySelectorAll('[data-wfilter]').forEach(b=>b.addEventListener('click',()=>{active=b.dataset.wfilter;draw();}));
@@ -119,20 +137,14 @@ function renderSite(s){
  set('galleryTitle',s.galleryTitle);set('galleryNote',s.galleryNote);
  const gal=document.getElementById('galleryList');
  if(gal) gal.innerHTML=(s.gallery||[]).map((x,i)=>{
-   const defaults=[
-     '/assets/gallery/gallery-1.webp',
-     '/assets/gallery/gallery-2.webp',
-     '/assets/gallery/gallery-3.webp',
-     '/assets/gallery/gallery-4.webp',
-     '/assets/gallery/gallery-5.webp'
-   ];
+   const defaults=[1,2,3,4,5].map(n=>fitnessGymAssetUrl(`/assets/gallery/gallery-${n}.webp`));
    const item=typeof x==='string'?{text:x,image:defaults[i%defaults.length]}:{...x};
    item.image=publicMediaUrl(item.image);
    if(!item.image) item.image=defaults[i%defaults.length];
    if(!item.image) return `<div>${escSite(item.text||'')}</div>`;
    const type=item.mediaType||(/^(data:video\/)|\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(item.image)?'video':(/^(data:image\/gif)|\.gif(\?|$)/i.test(item.image)?'gif':'image'));
    if(type==='video') return `<div class="gallery-image gallery-video"><video src="${escSite(item.image)}" autoplay muted loop playsinline controls preload="metadata"></video><span class="gallery-caption">${escSite(item.text||'')}</span></div>`;
-   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}" loading="lazy" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
+   return `<div class="gallery-image"><img src="${escSite(item.image)}" alt="${escSite(item.text||'')}" loading="eager" fetchpriority="high" decoding="async" onerror="if(this.dataset.fallback && this.src!==this.dataset.fallback){this.src=this.dataset.fallback}else{this.style.display='none';this.classList.add('image-failed')}" data-fallback="${escSite(defaults[i%defaults.length])}"></div>`;
  }).join('');
  set('contactTag',s.contactTag);set('contactTitle',s.contactTitle);set('contactText',s.contactText);set('phone',s.phone);set('whatsapp',s.whatsapp);set('address',s.address);set('hours',s.hours);set('footerText',s.footer);
  const wa=document.getElementById('whatsappLink');if(wa)wa.href='https://wa.me/'+String(s.whatsapp||'').replace(/\D/g,'');

@@ -148,3 +148,5 @@ td small{display:block;color:var(--muted)}
 @media(max-width:520px){.player-head{align-items:stretch;flex-direction:column}.player-head .btn{width:100%}.player-summary{grid-template-columns:1fr}.player-nutrition-grid{grid-template-columns:1fr 1fr}}
 
 .workout-media.image-failed,.gallery-image:has(.image-failed){display:grid;place-items:center;background:linear-gradient(135deg,#21130b,#0a0c0d);min-height:220px}.workout-media.image-failed:after{content:"🏋️";font-size:56px}.gallery-image:has(.image-failed):after{content:"FITNESS GYM";font-weight:900;letter-spacing:3px;color:#bbb}
+
+@media (max-width:700px){.gallery .gallery-image img,.workout-media>img,.product-card img{display:block!important;opacity:1!important;visibility:visible!important;-webkit-transform:translateZ(0);transform:translateZ(0)}.gallery .gallery-image,.workout-media,.product-card{overflow:hidden;-webkit-backface-visibility:hidden;backface-visibility:hidden}.gallery .gallery-image{min-height:190px}.workout-media>img{min-height:220px}}

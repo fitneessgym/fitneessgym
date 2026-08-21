@@ -38,11 +38,11 @@ const DEFAULT_SITE={
   ],
   calorieTitle:'حاسبة السعرات الحرارية', calorieNote:'الحساب تقديري للتوجيه العام وليس تشخيصًا أو خطة غذائية شخصية.',
   gallery:[
-    {text:'FITNESS GYM',image:'/assets/gallery/gallery-1.webp'},
-    {text:'FITNESS GYM',image:'/assets/gallery/gallery-2.webp'},
-    {text:'FITNESS GYM',image:'/assets/gallery/gallery-3.webp'},
-    {text:'FITNESS GYM',image:'/assets/gallery/gallery-4.webp'},
-    {text:'FITNESS GYM',image:'/assets/gallery/gallery-5.webp'}
+    {text:'FITNESS GYM',image:'assets/gallery/gallery-1.webp'},
+    {text:'FITNESS GYM',image:'assets/gallery/gallery-2.webp'},
+    {text:'FITNESS GYM',image:'assets/gallery/gallery-3.webp'},
+    {text:'FITNESS GYM',image:'assets/gallery/gallery-4.webp'},
+    {text:'FITNESS GYM',image:'assets/gallery/gallery-5.webp'}
   ],
   contactTag:'تواصل معنا', contactTitle:'جاهز تبدأ؟', contactText:'تواصل معنا للحجز والاستفسار عن الاشتراكات.', phone:'+972 54-670-0672', whatsapp:'+972 54-670-0672', address:'بيت لحم - نحالين - وسط البلد', hours:'السبت – الخميس | 06:00 – 23:00',
   footer:'القوة • الانضباط • الاستمرارية'

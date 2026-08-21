@@ -109,8 +109,8 @@
 <!-- Supabase must load before any script that uses window.supabaseClient. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
-<script src="site-config.js?v=3"></script>
-<script src="site-public.js?v=3"></script>
+<script src="site-config.js?v=5-mobile"></script>
+<script src="site-public.js?v=5-mobile"></script>
 <script src="script.js"></script>
 <script src="player-portal.js?v=12"></script>
 
@@ -129,7 +129,14 @@
   function publicProductImage(value) {
     const raw = String(value ?? "").trim();
     if (!raw) return "";
-    if (/^https?:\/\//i.test(raw) || /^(data:|blob:|\/|\.\.?\/)/i.test(raw)) return raw;
+    if (/^https?:\/\//i.test(raw) || /^(data:|blob:)/i.test(raw)) return raw;
+    if (/^\//.test(raw) || /^\.\/?/.test(raw) || /^assets\//i.test(raw)) {
+      try {
+        const tag = [...document.scripts].find(s => /site-public(?:\.min)?\.js(?:\?|$)/i.test(s.src));
+        const root = tag ? new URL('./', tag.src).href : new URL('./', document.baseURI).href;
+        return new URL(raw.replace(/^\//, '') + (raw.includes('?')?'&':'?') + 'v=20260821m', root).href;
+      } catch (_) {}
+    }
     try {
       if (window.supabaseClient?.storage) {
         const path = raw.replace(/^site-media[\/:]/i, "");
@@ -196,7 +203,7 @@
       container.innerHTML = data.map(function (p) {
         const imageUrl = publicProductImage(p.image_url || p.image);
         const image = imageUrl
-          ? '<img src="' + esc(imageUrl) + '" alt="' + esc(p.name) + '" loading="lazy" decoding="async" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
+          ? '<img src="' + esc(imageUrl) + '" alt="' + esc(p.name) + '" loading="eager" fetchpriority="high" decoding="async" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
           : '<div class="product-placeholder">🏋️</div>';
         const stock = Number(p.stock || 0);
         const buy = stock > 0
