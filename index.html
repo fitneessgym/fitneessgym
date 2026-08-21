@@ -124,6 +124,19 @@
   };
   const money = value => "₪" + Number(value || 0).toLocaleString("en-US");
 
+  function publicProductImage(value) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw) || /^(data:|blob:|\/|\.\.?\/)/i.test(raw)) return raw;
+    try {
+      if (window.supabaseClient?.storage) {
+        const path = raw.replace(/^site-media[\/:]/i, "");
+        return window.supabaseClient.storage.from("site-media").getPublicUrl(path).data.publicUrl || raw;
+      }
+    } catch (_) {}
+    return raw;
+  }
+
   function waNumber(value) {
     let d = String(value || "").replace(/\D/g, "");
     if (d.startsWith("00")) d = d.slice(2);
@@ -180,7 +193,7 @@
       }
 
       container.innerHTML = data.map(function (p) {
-        const imageUrl = p.image_url || p.image;
+        const imageUrl = publicProductImage(p.image_url || p.image);
         const image = imageUrl
           ? '<img src="' + esc(imageUrl) + '" alt="' + esc(p.name) + '" loading="lazy" style="width:100%;height:220px;object-fit:cover;border-radius:12px 12px 0 0;">'
           : '<div class="product-placeholder">🏋️</div>';
