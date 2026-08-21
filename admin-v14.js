@@ -17,7 +17,7 @@
   const waLink=(phone,text)=>'https://wa.me/'+waNumber(phone)+'?text='+encodeURIComponent(text);
   const invoiceMessage=(i,c)=>['فاتورة FITNESS GYM 🧾','', 'رقم الفاتورة: '+i.id,'العميل: '+(c?.name||'—'),'النوع: '+(i.type||'—'),'المبلغ: '+money(i.amount),'التاريخ: '+(i.date||'—'), i.note ? 'الوصف: '+i.note : '', '', 'شكرًا لتعاملكم مع FITNESS GYM 💪'].filter(Boolean).join('\n');
   const customerMessage=c=>['مرحبًا '+(c?.name||'')+' 👋','معك FITNESS GYM.','كيف يمكننا مساعدتك اليوم؟ 💪'].join('\n');
-  let customers=[],invoices=[],payments=[],workoutLogs=[],workouts=[],nutritionProfiles=[],customerNutrition=[];
+  let customers=[],invoices=[],payments=[],workoutLogs=[],workouts=[],nutritionProfiles=[],customerNutrition=[],weeklyPlans=[];
 
   const getCustomer=id=>customers.find(c=>String(c.id)===String(id));
   const debt=c=>Math.max(0,Number(c.total||0)-Number(c.paid||0));
@@ -30,13 +30,15 @@
       supabase.from('workout_logs').select('*').order('workout_date',{ascending:false}).order('created_at',{ascending:false}),
       supabase.from('site_settings').select('data').eq('id',1).maybeSingle(),
       supabase.from('customer_nutrition_profiles').select('*').order('updated_at',{ascending:false}),
-      supabase.from('customer_nutrition').select('*')
+      supabase.from('customer_nutrition').select('*'),
+      supabase.from('customer_nutrition_weekly_plans').select('*').order('week_start',{ascending:false}).order('updated_at',{ascending:false})
     ]);
-    const [c,i,p,w,st,n,cn]=results;
+    const [c,i,p,w,st,n,cn,wp]=results;
     if(c.error) throw c.error; if(i.error) throw i.error; if(p.error) throw p.error; if(w.error) throw w.error;
     if(n.error && n.error.code!=='42P01') console.warn('nutrition_profiles load:',n.error);
     if(cn.error && cn.error.code!=='42P01') console.warn('customer_nutrition load:',cn.error);
-    customers=c.data||[]; invoices=i.data||[]; payments=p.data||[]; workoutLogs=w.data||[]; nutritionProfiles=n.data||[]; customerNutrition=cn.data||[];
+    if(wp.error && wp.error.code!=='42P01') console.warn('weekly nutrition load:',wp.error);
+    customers=c.data||[]; invoices=i.data||[]; payments=p.data||[]; workoutLogs=w.data||[]; nutritionProfiles=n.data||[]; customerNutrition=cn.data||[]; weeklyPlans=wp.data||[];
     workouts=Array.isArray(st?.data?.workouts)?st.data.workouts:[];
   }
 
@@ -81,7 +83,7 @@
     if($('statInvoices'))$('statInvoices').textContent=money(inv);
     if($('statDebts'))$('statDebts').textContent=money(d);
     if($('statPaid'))$('statPaid').textContent=money(p);
-    renderCustomers();renderDebts();renderInvoices();renderWorkoutLogs();renderNutrition();fillSelects();fillWorkoutSelect();fillNutritionSelects();
+    renderCustomers();renderDebts();renderInvoices();renderWorkoutLogs();renderNutrition();renderWeeklyPlans();fillSelects();fillWorkoutSelect();fillNutritionSelects();fillWeeklyNutritionSelects();
     window.renderProducts?.();
   }
 
@@ -185,7 +187,70 @@
     await refresh(); $('nutritionCustomer').value=customerId; alert('تم حساب وحفظ السعرات للاعب بنجاح.');
   });
 
-  async function refresh(){try{await loadData();render();}catch(e){console.error(e);alert('تعذر تحميل بيانات الإدارة:\\n\\n'+(e.message||e.details||'خطأ غير معروف'));}}
+  const weekStart = value => {
+    const d=new Date((value||today())+'T00:00:00');
+    const day=d.getDay(); // Sunday=0, Saturday=6
+    d.setDate(d.getDate()-(day===6?0:day+1));
+    return d.toISOString().slice(0,10);
+  };
+  const weekDays=['السبت','الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'];
+  function defaultWeekDays(start,calories){
+    const kcal=Math.round(Number(calories||2000));
+    return weekDays.map((day,i)=>({day,date:new Date(new Date(start+'T00:00:00').getTime()+i*86400000).toISOString().slice(0,10),meals:[
+      {name:'الفطور',food:'بيض + خبز/شوفان + خضار + فاكهة',calories:Math.round(kcal*.25)},
+      {name:'سناك',food:'زبادي أو لبن + فاكهة أو حفنة مكسرات',calories:Math.round(kcal*.10)},
+      {name:'الغداء',food:'دجاج/لحم/سمك + أرز/بطاطا + سلطة',calories:Math.round(kcal*.35)},
+      {name:'سناك',food:'فاكهة + مصدر بروتين خفيف',calories:Math.round(kcal*.10)},
+      {name:'العشاء',food:'مصدر بروتين + خبز/أرز + خضار',calories:Math.round(kcal*.20)}
+    ]}));
+  }
+  function fillWeeklyNutritionSelects(){
+    const opts='<option value="">اختر اللاعب</option>'+customers.map(c=>`<option value="${esc(c.id)}">${esc(fullName(c))} — ${esc(c.phone)}</option>`).join('');
+    if($('weeklyPlanCustomer')) $('weeklyPlanCustomer').innerHTML=opts;
+    if($('weeklyFilterCustomer')) $('weeklyFilterCustomer').innerHTML='<option value="">كل اللاعبين</option>'+customers.map(c=>`<option value="${esc(c.id)}">${esc(fullName(c))}</option>`).join('');
+    if($('weeklyPlanWeek')&&!$('weeklyPlanWeek').value) $('weeklyPlanWeek').value=weekStart(today());
+  }
+  function renderWeeklyEditor(days){
+    const box=$('weeklyDaysEditor'); if(!box)return;
+    const arr=Array.isArray(days)&&days.length?days:defaultWeekDays(weekStart($('weeklyPlanWeek')?.value),2000);
+    box.innerHTML=arr.map((d,i)=>{
+      const lines=(Array.isArray(d.meals)?d.meals:[]).map(m=>`${m.name||'وجبة'}: ${m.food||''}${m.calories!=null?' | '+Math.round(Number(m.calories))+' kcal':''}`).join('\n');
+      return `<div class="weekly-day-card"><h4>${esc(d.day||weekDays[i]||'اليوم')}</h4><div class="weekly-day-date">${esc(d.date||'')}</div><textarea data-weekday="${i}" placeholder="الفطور: ... | 500 kcal\nالغداء: ... | 700 kcal\nالعشاء: ... | 500 kcal\nسناك: ... | 300 kcal">${esc(lines)}</textarea></div>`;
+    }).join('');
+  }
+  function parseWeeklyEditor(){
+    return [...document.querySelectorAll('#weeklyDaysEditor textarea')].map((ta,i)=>({day:weekDays[i],date:new Date(new Date(weekStart($('weeklyPlanWeek').value)+'T00:00:00').getTime()+i*86400000).toISOString().slice(0,10),meals:ta.value.split('\n').map(x=>x.trim()).filter(Boolean).map(line=>{const m=line.match(/^([^:]+):\s*(.*?)(?:\s*\|\s*(\d+(?:\.\d+)?)\s*kcal)?$/i);return {name:(m?.[1]||'وجبة').trim(),food:(m?.[2]||line).trim(),calories:m?.[3]?Number(m[3]):null};})}));
+  }
+  async function loadWeeklyEditor(){
+    const customerId=$('weeklyPlanCustomer')?.value; if(!customerId)return;
+    const start=weekStart($('weeklyPlanWeek')?.value||today()); $('weeklyPlanWeek').value=start;
+    const existing=weeklyPlans.find(x=>String(x.customer_id)===String(customerId)&&String(x.week_start)===String(start));
+    if(existing){renderWeeklyEditor(existing.days);if($('weeklyPlanStatus'))$('weeklyPlanStatus').textContent='تم تحميل الخطة المحفوظة لهذا الأسبوع.';return;}
+    const p=nutritionProfiles.find(x=>String(x.customer_id)===String(customerId))||{}; const n=customerNutrition.find(x=>String(x.customer_id)===String(customerId))||{};
+    const target=n.daily_calories ?? p.target_calories ?? 2000;
+    renderWeeklyEditor(defaultWeekDays(start,target));
+    if($('weeklyPlanStatus'))$('weeklyPlanStatus').textContent='لا توجد خطة محفوظة لهذا الأسبوع. تم تجهيز خطة بداية حسب سعرات اللاعب؛ اضغط حفظ لإرسالها للاعب.';
+  }
+  function renderWeeklyPlans(){
+    const body=$('weeklyPlansBody'); if(!body)return; const filter=$('weeklyFilterCustomer')?.value||'';
+    const rows=weeklyPlans.filter(x=>!filter||String(x.customer_id)===String(filter));
+    body.innerHTML=rows.map(x=>{const c=getCustomer(x.customer_id);return `<tr><td><b>${esc(fullName(c))}</b></td><td>${esc(x.week_start||'')}</td><td>${x.target_calories!=null?Math.round(Number(x.target_calories)):'—'}</td><td>${esc(goalLabel(x.goal))}</td><td>${esc((x.updated_at||'').slice(0,10)||'—')}</td><td><button class="mini" type="button" onclick="editWeeklyPlan('${esc(x.customer_id)}','${esc(x.week_start)}')">تعديل</button></td></tr>`}).join('')||'<tr><td colspan="6" class="empty">لا توجد خطط أسبوعية محفوظة بعد.</td></tr>';
+  }
+  window.editWeeklyPlan=(customerId,start)=>{document.querySelector('[data-tab="weekly-nutrition"]')?.click();if($('weeklyPlanCustomer'))$('weeklyPlanCustomer').value=customerId;if($('weeklyPlanWeek'))$('weeklyPlanWeek').value=weekStart(start);loadWeeklyEditor();};
+  $('weeklyPlanCustomer')?.addEventListener('change',loadWeeklyEditor);
+  $('weeklyPlanWeek')?.addEventListener('change',loadWeeklyEditor);
+  $('weeklyFilterCustomer')?.addEventListener('change',renderWeeklyPlans);
+  $('weeklyNutritionForm')?.addEventListener('submit',async e=>{
+    e.preventDefault(); const customerId=$('weeklyPlanCustomer').value; if(!getCustomer(customerId))return alert('اختر اللاعب.');
+    const start=weekStart($('weeklyPlanWeek').value||today()); $('weeklyPlanWeek').value=start;
+    const p=nutritionProfiles.find(x=>String(x.customer_id)===String(customerId))||{}; const n=customerNutrition.find(x=>String(x.customer_id)===String(customerId))||{};
+    const target=n.daily_calories ?? p.target_calories ?? 2000; const goal=n.fitness_goal ?? n.goal ?? p.goal ?? 'build'; const bodyType=n.body_type ?? p.body_type ?? 'mesomorph'; const days=parseWeeklyEditor();
+    const {data,error}=await supabase.from('customer_nutrition_weekly_plans').upsert({customer_id:customerId,week_start:start,target_calories:target,goal,body_type:bodyType,days,updated_at:new Date().toISOString()},{onConflict:'customer_id,week_start'}).select('*').single();
+    if(error)return alert('تعذر حفظ خطة الأكل الأسبوعية:\n\n'+(error.message||error.details||''));
+    weeklyPlans=[data,...weeklyPlans.filter(x=>!(String(x.customer_id)===String(customerId)&&String(x.week_start)===String(start)))]; renderWeeklyEditor(data.days);renderWeeklyPlans();if($('weeklyPlanStatus'))$('weeklyPlanStatus').textContent='تم حفظ خطة الأكل للأسبوع بنجاح.';alert('تم حفظ خطة الأكل الأسبوعية للاعب.');
+  });
+
+  async function refresh(){try{await loadData();render();}catch(e){console.error(e);alert('تعذر تحميل بيانات الإدارة:\n\n'+(e.message||e.details||'خطأ غير معروف'));}}
 
   $('customerForm')?.addEventListener('submit',async e=>{
     e.preventDefault();

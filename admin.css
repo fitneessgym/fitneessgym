@@ -5,3 +5,5 @@
 .filters-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .filters-row select,.filters-row input{min-width:150px;padding:9px;border-radius:10px;}
 @media(max-width:800px){.name-grid{grid-template-columns:1fr;}.filters-row{width:100%;}.filters-row select,.filters-row input{width:100%;}}
+
+.weekly-days-editor{display:grid;gap:12px;margin-top:8px}.weekly-day-card{background:#101415;border:1px solid var(--line);border-radius:12px;padding:13px}.weekly-day-card h4{margin:0 0 8px;color:var(--orange)}.weekly-day-card textarea{min-height:125px;resize:vertical;width:100%;background:#090b0c;color:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;font:14px Cairo;line-height:1.8}.weekly-day-date{color:var(--muted);font-size:12px;margin-bottom:7px}.weekly-plan-badge{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:11px;color:#ddd}

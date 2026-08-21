@@ -364,6 +364,107 @@ using (
 );
 
 
+-- Weekly nutrition plans (Saturday-Friday; current week is selected automatically)
+create table if not exists public.customer_nutrition_weekly_plans (
+  id uuid primary key default gen_random_uuid(),
+  customer_id text not null references public.customers(id) on delete cascade,
+  week_start date not null,
+  target_calories numeric(8,2),
+  goal text not null default 'build',
+  body_type text not null default 'mesomorph',
+  days jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(customer_id, week_start)
+);
+
+alter table public.customer_nutrition_weekly_plans enable row level security;
+
+drop policy if exists "admins can manage weekly nutrition plans" on public.customer_nutrition_weekly_plans;
+create policy "admins can manage weekly nutrition plans"
+on public.customer_nutrition_weekly_plans for all to authenticated
+using (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))
+with check (exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())));
+
+grant select, insert, update, delete on public.customer_nutrition_weekly_plans to authenticated;
+
+create or replace function public.player_week_start(p_date date default current_date)
+returns date
+language sql
+immutable
+as $$
+  -- PostgreSQL date_trunc('week') starts Monday; FITNESS GYM uses Saturday-Friday.
+  select (p_date - ((extract(isodow from p_date)::int + 1) % 7))::date;
+$$;
+
+-- Creates a simple seven-day starter menu when a player reaches a new week.
+-- It is intentionally general and editable by the coach from the admin panel.
+create or replace function public.ensure_player_weekly_plan(p_customer_id text, p_week_start date default public.player_week_start(current_date))
+returns public.customer_nutrition_weekly_plans
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  result public.customer_nutrition_weekly_plans;
+  n record;
+  day_names text[] := array['السبت','الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'];
+  generated jsonb := '[]'::jsonb;
+  i int;
+  kcal numeric := 2000;
+  goal_value text := 'build';
+  body_value text := 'mesomorph';
+  day_obj jsonb;
+begin
+  select coalesce(target_calories,2000), coalesce(goal,'build'), coalesce(body_type,'mesomorph')
+    into kcal, goal_value, body_value
+  from public.customer_nutrition_profiles
+  where customer_id=p_customer_id
+  limit 1;
+
+  select * into result from public.customer_nutrition_weekly_plans
+    where customer_id=p_customer_id and week_start=p_week_start limit 1;
+  if found then return result; end if;
+
+  for i in 0..6 loop
+    day_obj := jsonb_build_object(
+      'day', day_names[i+1],
+      'date', (p_week_start+i)::date,
+      'meals', jsonb_build_array(
+        jsonb_build_object('name','الفطور','food','بيض + خبز/شوفان + خضار + فاكهة','calories',round(kcal*0.25)),
+        jsonb_build_object('name','سناك','food','زبادي أو لبن + فاكهة أو حفنة مكسرات','calories',round(kcal*0.10)),
+        jsonb_build_object('name','الغداء','food','دجاج/لحم/سمك + أرز/بطاطا + سلطة','calories',round(kcal*0.35)),
+        jsonb_build_object('name','سناك','food','فاكهة + مصدر بروتين خفيف','calories',round(kcal*0.10)),
+        jsonb_build_object('name','العشاء','food','مصدر بروتين + خبز/أرز + خضار','calories',round(kcal*0.20))
+      )
+    );
+    generated := generated || jsonb_build_array(day_obj);
+  end loop;
+
+  -- Multiple devices can log in at the same time when a new week starts.
+  -- Avoid a unique-key race: only one request creates the plan, the others read it.
+  insert into public.customer_nutrition_weekly_plans(customer_id,week_start,target_calories,goal,body_type,days)
+  values(p_customer_id,p_week_start,kcal,goal_value,body_value,generated)
+  on conflict (customer_id, week_start) do nothing
+  returning * into result;
+
+  if not found then
+    select * into result
+    from public.customer_nutrition_weekly_plans
+    where customer_id=p_customer_id and week_start=p_week_start
+    limit 1;
+  end if;
+
+  return result;
+end;
+$$;
+
+revoke all on function public.player_week_start(date) from public;
+grant execute on function public.player_week_start(date) to anon, authenticated;
+revoke all on function public.ensure_player_weekly_plan(text,date) from public;
+
+notify pgrst, 'reload schema';
+
 -- Player portal login (phone + PIN) and private dashboard RPC
 create extension if not exists pgcrypto;
 alter table public.customers add column if not exists player_pin_hash text;
@@ -559,6 +660,10 @@ begin
       from public.customer_nutrition_profiles n
       where n.customer_id = c.id
       limit 1
+    ),
+    'weekly_plan', (
+      select to_jsonb(wp)
+      from public.ensure_player_weekly_plan(c.id, public.player_week_start(current_date)) wp
     )
   );
 end;
